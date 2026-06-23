@@ -1,0 +1,266 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import mapboxgl from "mapbox-gl";
+import { getWalkingRoute } from "@/lib/mapbox";
+import { UNIVERSITIES } from "@/lib/utils";
+import type { Listing } from "@/types";
+
+interface ListingMapProps {
+  listings: Listing[];
+  selectedUniversityId?: string;
+  activeListingId?: string | null;
+  onSelectListing?: (id: string) => void;
+}
+
+export default function ListingMap({
+  listings,
+  selectedUniversityId,
+  activeListingId,
+  onSelectListing,
+}: ListingMapProps) {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const univMarkerRef = useRef<mapboxgl.Marker | null>(null);
+
+  const [routeInfo, setRouteInfo] = useState<{ distanceKm: number; durationMins: number } | null>(null);
+
+  const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+
+  // Initialize Map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    mapboxgl.accessToken = token;
+
+    const initialCenter: [number, number] = [90.3989, 23.7279]; // Dhaka center
+
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: "mapbox://styles/mapbox/streets-v12",
+      center: initialCenter,
+      zoom: 12,
+    });
+
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+    mapRef.current = map;
+
+    map.on("load", () => {
+      // Add source for route line
+      map.addSource("route", {
+        type: "geojson",
+        data: {
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "LineString",
+            coordinates: [],
+          },
+        },
+      });
+
+      // Add layer for route line
+      map.addLayer({
+        id: "route",
+        type: "line",
+        source: "route",
+        layout: {
+          "line-join": "round",
+          "line-cap": "round",
+        },
+        paint: {
+          "line-color": "#2A7D46", // Our primary sage green
+          "line-width": 5,
+          "line-opacity": 0.85,
+        },
+      });
+    });
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [token]);
+
+  // Update listings markers
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Clear existing markers
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    listings.forEach((listing) => {
+      if (listing.lat && listing.lng) {
+        // Create custom HTML element for marker
+        const el = document.createElement("div");
+        el.className = "custom-marker";
+        el.style.width = "30px";
+        el.style.height = "30px";
+        el.style.borderRadius = "50%";
+        el.style.backgroundColor = listing.id === activeListingId ? "var(--accent)" : "var(--primary)";
+        el.style.border = "2px solid #white";
+        el.style.boxShadow = "var(--shadow-md)";
+        el.style.display = "flex";
+        el.style.alignItems = "center";
+        el.style.justifyContent = "center";
+        el.style.color = "#white";
+        el.style.fontWeight = "bold";
+        el.style.fontSize = "12px";
+        el.style.cursor = "pointer";
+        el.innerHTML = "🏠";
+
+        if (listing.id === activeListingId) {
+          el.style.transform = "scale(1.2)";
+          el.style.zIndex = "10";
+        }
+
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([listing.lng, listing.lat])
+          .addTo(map);
+
+        el.addEventListener("click", () => {
+          if (onSelectListing) {
+            onSelectListing(listing.id);
+          }
+        });
+
+        markersRef.current.push(marker);
+      }
+    });
+  }, [listings, activeListingId, onSelectListing]);
+
+  // Handle university selection & Routing path
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Remove old varsity marker
+    if (univMarkerRef.current) {
+      univMarkerRef.current.remove();
+      univMarkerRef.current = null;
+    }
+
+    // Reset route line
+    const resetRoute = () => {
+      const source = map.getSource("route") as mapboxgl.GeoJSONSource | undefined;
+      if (source) {
+        source.setData({
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "LineString",
+            coordinates: [],
+          },
+        });
+      }
+      setRouteInfo(null);
+    };
+
+    resetRoute();
+
+    const univ = UNIVERSITIES.find((u) => u.id === selectedUniversityId);
+    if (!univ) return;
+
+    // Create custom University marker
+    const el = document.createElement("div");
+    el.style.width = "36px";
+    el.style.height = "36px";
+    el.style.borderRadius = "8px";
+    el.style.backgroundColor = "var(--accent)";
+    el.style.display = "flex";
+    el.style.alignItems = "center";
+    el.style.justifyContent = "center";
+    el.style.fontSize = "16px";
+    el.style.border = "2px solid #fff";
+    el.style.boxShadow = "var(--shadow-lg)";
+    el.innerHTML = "🎓";
+
+    const univMarker = new mapboxgl.Marker(el)
+      .setLngLat([univ.lng, univ.lat])
+      .addTo(map);
+
+    univMarkerRef.current = univMarker;
+
+    // Center map around the university
+    map.flyTo({
+      center: [univ.lng, univ.lat],
+      zoom: 14,
+      essential: true,
+    });
+
+    // If there is an active listing, draw route line
+    const activeListing = listings.find((l) => l.id === activeListingId);
+    if (activeListing && activeListing.lat && activeListing.lng) {
+      getWalkingRoute([univ.lng, univ.lat], [activeListing.lng, activeListing.lat], token).then((route) => {
+        if (route) {
+          const source = map.getSource("route") as mapboxgl.GeoJSONSource | undefined;
+          if (source) {
+            source.setData({
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "LineString",
+                coordinates: route.coordinates,
+              },
+            });
+          }
+          setRouteInfo({
+            distanceKm: route.distanceKm,
+            durationMins: route.durationMins,
+          });
+
+          // Fit bounds to fit route
+          const bounds = new mapboxgl.LngLatBounds();
+          route.coordinates.forEach((coord) => bounds.extend(coord));
+          map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+        }
+      });
+    }
+  }, [selectedUniversityId, activeListingId, listings, token]);
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div ref={mapContainerRef} style={{ width: "100%", height: "100%", borderRadius: "var(--radius-lg)" }} />
+      {routeInfo && (
+        <div style={{
+          position: "absolute",
+          bottom: "16px",
+          left: "16px",
+          right: "16px",
+          background: "rgba(255, 255, 255, 0.95)",
+          backdropFilter: "blur(4px)",
+          padding: "10px 14px",
+          borderRadius: "var(--radius-md)",
+          boxShadow: "var(--shadow-lg)",
+          zIndex: 1,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          border: "1px solid var(--border)",
+        }}>
+          <div>
+            <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, display: "block" }}>
+              🚶 Walking Path on Road
+            </span>
+            <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "var(--primary)" }}>
+              {routeInfo.distanceKm.toFixed(2)} km
+            </span>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, display: "block" }}>
+              Est. Duration
+            </span>
+            <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "var(--accent-hover)" }}>
+              {Math.ceil(routeInfo.durationMins)} mins
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
