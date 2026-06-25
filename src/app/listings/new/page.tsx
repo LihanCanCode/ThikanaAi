@@ -160,7 +160,10 @@ export default function NewListingPage() {
 
       // 3. Insert into Supabase
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
       const { error } = await supabase.from("listings").insert({
+        landlord_id: user?.id ?? null,
         title_en: generated.title_en,
         title_bn: generated.title_bn,
         description_en: generated.description_en,

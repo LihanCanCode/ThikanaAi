@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/shared/Navbar";
 import { UNIVERSITIES } from "@/lib/utils";
+import { saveFlatmateProfile } from "@/app/student/flatmate-actions";
 import { Users, Sparkles, Loader2 } from "lucide-react";
 import type { FlatmateProfile } from "@/types";
 
@@ -52,7 +53,7 @@ export default function MatchingPage() {
     setLoading(true);
     try {
       const profile: FlatmateProfile = {
-        id: "me",
+        id: "pending",
         name: draft.name!,
         university: draft.university!,
         university_priority: draft.university_priority ?? "commutable_both",
@@ -79,17 +80,24 @@ export default function MatchingPage() {
         ideal_flatmate: "",
       };
 
+      const saved = await saveFlatmateProfile(profile);
+      if (saved.error) {
+        setError(saved.error);
+        return;
+      }
+      const savedProfile = saved.profile ?? profile;
+
       const res = await fetch("/api/ai/match-flatmates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile }),
+        body: JSON.stringify({ profile: savedProfile }),
       });
 
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
       const matches = data.matches ?? [];
       sessionStorage.setItem("flatmate_matches", JSON.stringify(matches));
-      sessionStorage.setItem("my_profile", JSON.stringify(profile));
+      sessionStorage.setItem("my_profile", JSON.stringify(savedProfile));
       router.push("/student/matching/results");
     } catch (err) {
       setError("Matching failed — please check your API key or try again.");

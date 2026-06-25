@@ -2,26 +2,49 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, SlidersHorizontal, MapPin, X, Users, GraduationCap, Moon, Sparkles, Send, CheckCircle } from "lucide-react";
+import { Search, SlidersHorizontal, GraduationCap, Sparkles, Send, CheckCircle, Loader2 } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
-import { SEED_PROFILES } from "@/lib/seed-profiles";
 import { UNIVERSITIES, formatBDT } from "@/lib/utils";
+import {
+  getFlatmateProfiles,
+  getMyFlatmateProfile,
+  sendFlatmateFlick,
+  getSentFlickIds,
+  seedDemoFlatmateProfiles,
+} from "@/app/student/flatmate-actions";
 import type { FlatmateProfile } from "@/types";
 
-function ProfileCard({ profile, myProfile }: { profile: FlatmateProfile, myProfile: Partial<FlatmateProfile> | null }) {
-  const [flicked, setFlicked] = useState(false);
-  const univ = UNIVERSITIES.find(u => u.id === profile.university);
-  
-  // Calculate a quick rule-based match score if we have myProfile
+function ProfileCard({
+  profile,
+  myProfile,
+  flickSent,
+  onFlick,
+}: {
+  profile: FlatmateProfile;
+  myProfile: FlatmateProfile | null;
+  flickSent: boolean;
+  onFlick: (id: string) => Promise<void>;
+}) {
+  const [flicking, setFlicking] = useState(false);
+  const [sent, setSent] = useState(flickSent);
+  const univ = UNIVERSITIES.find((u) => u.id === profile.university);
+
   let score = 0;
   if (myProfile) {
     score = 50;
     if (myProfile.sleep_schedule === profile.sleep_schedule) score += 15;
     if (myProfile.smoking === profile.smoking) score += 10;
     if (myProfile.cleanliness === profile.cleanliness) score += 10;
-    const overlap = Math.min(myProfile.budget_max || 99999, profile.budget_max) >= Math.max(myProfile.budget_min || 0, profile.budget_min);
+    const overlap = Math.min(myProfile.budget_max, profile.budget_max) >= Math.max(myProfile.budget_min, profile.budget_min);
     if (overlap) score += 15;
   }
+
+  const handleFlick = async () => {
+    setFlicking(true);
+    await onFlick(profile.id);
+    setSent(true);
+    setFlicking(false);
+  };
 
   return (
     <div className="card" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", height: "100%", transition: "all 0.2s" }}
@@ -95,13 +118,19 @@ function ProfileCard({ profile, myProfile }: { profile: FlatmateProfile, myProfi
       </div>
 
       {/* Action */}
-      <button 
-        onClick={() => setFlicked(true)}
-        disabled={flicked}
-        className={`btn ${flicked ? "btn-outline" : "btn-primary"}`} 
+      <button
+        onClick={handleFlick}
+        disabled={sent || flicking || !myProfile}
+        className={`btn ${sent ? "btn-outline" : "btn-primary"}`}
         style={{ width: "100%", justifyContent: "center", padding: "0.6rem" }}
       >
-        {flicked ? <><CheckCircle size={16} style={{ color: "var(--success)" }}/> Flick Sent</> : <><Send size={16} /> Send Flick</>}
+        {flicking ? (
+          <><Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Sending…</>
+        ) : sent ? (
+          <><CheckCircle size={16} style={{ color: "var(--success)" }} /> Flick Sent</>
+        ) : (
+          <><Send size={16} /> Send Flick</>
+        )}
       </button>
     </div>
   );
@@ -111,17 +140,35 @@ export default function FlatmateFeedPage() {
   const [query, setQuery] = useState("");
   const [selectedUniv, setSelectedUniv] = useState("");
   const [maxBudget, setMaxBudget] = useState("");
-  const [myProfile, setMyProfile] = useState<Partial<FlatmateProfile> | null>(null);
+  const [myProfile, setMyProfile] = useState<FlatmateProfile | null>(null);
+  const [profiles, setProfiles] = useState<FlatmateProfile[]>([]);
+  const [sentFlicks, setSentFlicks] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const p = sessionStorage.getItem("my_profile");
-    if (p) {
-      try { setMyProfile(JSON.parse(p)); } catch {}
+    async function load() {
+      await seedDemoFlatmateProfiles();
+      const [allProfiles, mine, flickIds] = await Promise.all([
+        getFlatmateProfiles(),
+        getMyFlatmateProfile(),
+        getSentFlickIds(),
+      ]);
+      setProfiles(allProfiles.filter((p) => p.id !== mine?.id));
+      setMyProfile(mine);
+      setSentFlicks(new Set(flickIds));
+      setLoading(false);
     }
+    load();
   }, []);
 
-  // Filter logic
-  let filtered = SEED_PROFILES;
+  const handleFlick = async (profileId: string) => {
+    const result = await sendFlatmateFlick(profileId);
+    if (!result.error) {
+      setSentFlicks((prev) => new Set([...prev, profileId]));
+    }
+  };
+
+  let filtered = profiles;
   if (query) {
     const q = query.toLowerCase();
     filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || p.preferred_areas.some(a => a.toLowerCase().includes(q)));
@@ -206,7 +253,11 @@ export default function FlatmateFeedPage() {
 
         {/* Main Feed */}
         <main style={{ flex: 1 }}>
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "4rem 0", color: "var(--text-muted)" }}>
+              <Loader2 size={28} style={{ animation: "spin 1s linear infinite" }} />
+            </div>
+          ) : filtered.length === 0 ? (
             <div style={{ textAlign: "center", padding: "4rem 0", color: "var(--text-muted)", background: "var(--bg-surface)", borderRadius: "var(--radius-lg)" }}>
               <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>👥</div>
               <h3 style={{ fontWeight: 600, fontSize: "1.2rem", color: "var(--text-main)", marginBottom: "0.5rem" }}>No profiles found</h3>
@@ -214,8 +265,14 @@ export default function FlatmateFeedPage() {
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1.5rem" }}>
-              {filtered.map(profile => (
-                <ProfileCard key={profile.id} profile={profile} myProfile={myProfile} />
+              {filtered.map((profile) => (
+                <ProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  myProfile={myProfile}
+                  flickSent={sentFlicks.has(profile.id)}
+                  onFlick={handleFlick}
+                />
               ))}
             </div>
           )}

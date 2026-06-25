@@ -5,8 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { Search, SlidersHorizontal, MapPin, X, Loader2, Sparkles, Map as MapIcon, List as ListIcon } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
 import ListingCard from "@/components/listings/ListingCard";
-import { SEED_LISTINGS } from "@/lib/seed-listings";
-import { createClient } from "@/lib/supabase/client";
 import { DHAKA_AREAS, UNIVERSITIES, getDistanceKm } from "@/lib/utils";
 import type { Listing, SearchFilters } from "@/types";
 
@@ -26,92 +24,70 @@ function StudentListingsContent() {
   // Student Specific university search states
   const [selectedUniv, setSelectedUniv] = useState("iut"); // default to IUT
 
-  const parseAndSearch = useCallback(async (q: string, listSource?: Listing[]) => {
-    if (!q.trim()) {
-      const f = { type: "student" as const };
-      setFilters(f);
-      setAiParsed(false);
-      applyFilters(f, "", listSource);
-      return;
-    }
+  const parseAndSearch = useCallback(async (q: string) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/ai/parse-query", {
+      let f: SearchFilters = { type: "student" };
+      let parsed = false;
+
+      if (q.trim()) {
+        const parseRes = await fetch("/api/ai/parse-query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: q }),
+        });
+        const parseData = await parseRes.json();
+        f = { ...parseData.filters, type: "student" };
+        parsed = true;
+      }
+
+      setFilters(f);
+      setAiParsed(parsed);
+
+      const searchRes = await fetch("/api/listings/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ filters: f, query: q, type: "student" }),
       });
-      const data = await res.json();
-      const f: SearchFilters = { ...data.filters, type: "student" };
-      setFilters(f);
-      setAiParsed(true);
-      applyFilters(f, q, listSource);
+      const searchData = await searchRes.json();
+      setListings(searchData.listings ?? []);
+      setAllListings(searchData.listings ?? []);
     } catch {
-      applyFilters({ type: "student" }, q, listSource);
+      setListings([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  function applyFilters(f: SearchFilters, currentQuery?: string, listSource?: Listing[]) {
-    const source = listSource || allListings;
-    let results = source.filter(l => l.type === "student") as Listing[];
-    if (f.area) results = results.filter(l => l.area.toLowerCase().includes(f.area!.toLowerCase()));
-    if (f.max_rent) results = results.filter(l => l.rent_bdt <= f.max_rent!);
-    if (f.min_rent) results = results.filter(l => l.rent_bdt >= f.min_rent!);
-    if (f.rooms) results = results.filter(l => l.rooms >= f.rooms!);
-    if (f.for_gender && f.for_gender !== "any") {
-      results = results.filter(l => l.for_gender === f.for_gender || l.for_gender === "any");
+  const searchWithFilters = useCallback(async (f: SearchFilters, q: string = query) => {
+    setLoading(true);
+    try {
+      const searchRes = await fetch("/api/listings/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters: f, query: q, type: "student" }),
+      });
+      const searchData = await searchRes.json();
+      setListings(searchData.listings ?? []);
+    } finally {
+      setLoading(false);
     }
-    if (f.furnishing) results = results.filter(l => l.furnishing === f.furnishing);
-    
-    const searchString = currentQuery !== undefined ? currentQuery : query;
-    if (searchString && searchString.trim() !== "") {
-      const qs = searchString.toLowerCase();
-      results = results.filter(l => 
-        l.title_en.toLowerCase().includes(qs) || 
-        l.area.toLowerCase().includes(qs) || 
-        (l.description_en && l.description_en.toLowerCase().includes(qs)) ||
-        (l.title_bn && l.title_bn.includes(qs))
-      );
-    }
-    setListings(results);
-  }
+  }, [query]);
 
   useEffect(() => {
-    // Fetch live from Supabase, fallback to seed data
-    const supabase = createClient();
-    supabase
-      .from("listings")
-      .select("*")
-      .eq("is_available", true)
-      .then(({ data, error }) => {
-        let combined: Listing[];
-        if (error || !data || data.length === 0) {
-          combined = SEED_LISTINGS as Listing[];
-        } else {
-          combined = data as Listing[];
-        }
-        setAllListings(combined);
-        applyFilters(filters, initialQ, combined);
-        if (initialQ) parseAndSearch(initialQ, combined);
-      });
-  }, []);
+    parseAndSearch(initialQ);
+  }, [initialQ, parseAndSearch]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setQuery(inputVal);
-    applyFilters(filters, inputVal); // Apply text filter immediately
     parseAndSearch(inputVal);
   };
 
   const clearFilters = () => {
     setQuery("");
     setInputVal("");
-    const f = { type: "student" as const };
-    setFilters(f);
-    setAiParsed(false);
-    applyFilters(f, "");
+    parseAndSearch("");
   };
 
   const getDistance = (listing: Listing) => {
@@ -201,25 +177,25 @@ function StudentListingsContent() {
           <div className="container">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
               <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.area || ""} onChange={e => { const f = { ...filters, area: e.target.value || undefined }; setFilters(f); applyFilters(f); }}>
+                value={filters.area || ""} onChange={e => { const f = { ...filters, area: e.target.value || undefined, type: "student" as const }; setFilters(f); searchWithFilters(f); }}>
                 <option value="">All Areas</option>
                 {DHAKA_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
               <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.for_gender || ""} onChange={e => { const f = { ...filters, for_gender: e.target.value as SearchFilters["for_gender"] || undefined }; setFilters(f); applyFilters(f); }}>
+                value={filters.for_gender || ""} onChange={e => { const f = { ...filters, for_gender: e.target.value as SearchFilters["for_gender"] || undefined, type: "student" as const }; setFilters(f); searchWithFilters(f); }}>
                 <option value="">Any Gender</option>
                 <option value="male">Male Only</option>
                 <option value="female">Female Only</option>
               </select>
               <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.furnishing || ""} onChange={e => { const f = { ...filters, furnishing: e.target.value as SearchFilters["furnishing"] || undefined }; setFilters(f); applyFilters(f); }}>
+                value={filters.furnishing || ""} onChange={e => { const f = { ...filters, furnishing: e.target.value as SearchFilters["furnishing"] || undefined, type: "student" as const }; setFilters(f); searchWithFilters(f); }}>
                 <option value="">Any Furnishing</option>
                 <option value="unfurnished">Unfurnished</option>
                 <option value="semi">Semi-Furnished</option>
                 <option value="fully">Fully-Furnished</option>
               </select>
               <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.max_rent || ""} onChange={e => { const f = { ...filters, max_rent: e.target.value ? parseInt(e.target.value) : undefined }; setFilters(f); applyFilters(f); }}>
+                value={filters.max_rent || ""} onChange={e => { const f = { ...filters, max_rent: e.target.value ? parseInt(e.target.value) : undefined, type: "student" as const }; setFilters(f); searchWithFilters(f); }}>
                 <option value="">Max Rent</option>
                 <option value="5000">Under ৳5,000</option>
                 <option value="7000">Under ৳7,000</option>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SEED_PROFILES, getSharedAreas } from "@/lib/seed-profiles";
+import { getFlatmateCandidates } from "@/lib/flatmate-candidates";
+import { getSharedAreas } from "@/lib/seed-profiles";
 import { UNIVERSITIES } from "@/lib/utils";
 import type { FlatmateProfile, MatchResult } from "@/types";
 
@@ -111,8 +112,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Profile is required" }, { status: 400 });
     }
 
-    // Filter candidates
-    const candidates = SEED_PROFILES.filter(
+    // Filter candidates from database (falls back to seed data)
+    const allCandidates = await getFlatmateCandidates(profile.id);
+    const candidates = allCandidates.filter(
       (p) => p.id !== profile.id && passesHardFilter(profile, p)
     );
 

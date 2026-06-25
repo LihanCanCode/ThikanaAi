@@ -27,6 +27,8 @@ function getDashboardHref(role: UserRole | string | undefined) {
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [profileRole, setProfileRole] = useState<UserRole | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -46,6 +48,26 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
+    if (!user) {
+      setProfileRole(null);
+      setProfileName(null);
+      return;
+    }
+    const supabase = createClient();
+    supabase
+      .from("profiles")
+      .select("full_name, role")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setProfileRole(data.role as UserRole);
+          setProfileName(data.full_name);
+        }
+      });
+  }, [user]);
+
+  useEffect(() => {
     if (!userMenuOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
@@ -58,9 +80,9 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
 
-  const fullName = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "User";
+  const fullName = profileName ?? (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "User";
   const email = user?.email ?? "";
-  const role = (user?.user_metadata?.role as UserRole | undefined) ?? "student";
+  const role = profileRole ?? (user?.user_metadata?.role as UserRole | undefined) ?? "student";
   const initials = getInitials(fullName);
   const dashboardHref = getDashboardHref(role);
 

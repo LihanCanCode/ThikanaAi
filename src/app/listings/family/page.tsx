@@ -5,8 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { Search, SlidersHorizontal, X, Loader2, Sparkles, Building, Briefcase } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
 import ListingCard from "@/components/listings/ListingCard";
-import { SEED_LISTINGS } from "@/lib/seed-listings";
-import { createClient } from "@/lib/supabase/client";
 import { DHAKA_AREAS } from "@/lib/utils";
 import type { Listing, SearchFilters } from "@/types";
 
@@ -23,65 +21,65 @@ function FamilyListingsContent() {
   const [aiParsed, setAiParsed] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  const parseAndSearch = useCallback(async (q: string, listSource?: Listing[]) => {
-    if (!q.trim()) {
-      setFilters({});
-      setAiParsed(false);
-      applyFilters({}, listSource);
-      return;
-    }
+  const parseAndSearch = useCallback(async (q: string) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/ai/parse-query", {
+      let f: SearchFilters = {};
+      let parsed = false;
+
+      if (q.trim()) {
+        const parseRes = await fetch("/api/ai/parse-query", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: q }),
+        });
+        const parseData = await parseRes.json();
+        f = parseData.filters ?? {};
+        parsed = true;
+      }
+
+      setFilters(f);
+      setAiParsed(parsed);
+
+      const searchRes = await fetch("/api/listings/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ filters: f, query: q }),
       });
-      const data = await res.json();
-      const f: SearchFilters = data.filters ?? {};
-      setFilters(f);
-      setAiParsed(true);
-      applyFilters(f, listSource);
+      const searchData = await searchRes.json();
+      let results = (searchData.listings ?? []) as Listing[];
+      results = results.filter((l) => l.type === "family" || l.type === "professional");
+      if (f.type) results = results.filter((l) => l.type === f.type);
+      setListings(results);
+      setAllListings(results);
     } catch {
-      applyFilters({}, listSource);
+      setListings([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  function applyFilters(f: SearchFilters, listSource?: Listing[]) {
-    const source = listSource || allListings;
-    // Only display Family or Professional listings (exclude student)
-    let results = source.filter(l => l.type === "family" || l.type === "professional") as Listing[];
-    
-    if (f.area) results = results.filter(l => l.area.toLowerCase().includes(f.area!.toLowerCase()));
-    if (f.max_rent) results = results.filter(l => l.rent_bdt <= f.max_rent!);
-    if (f.min_rent) results = results.filter(l => l.rent_bdt >= f.min_rent!);
-    if (f.rooms) results = results.filter(l => l.rooms >= f.rooms!);
-    if (f.type) results = results.filter(l => l.type === f.type);
-    if (f.furnishing) results = results.filter(l => l.furnishing === f.furnishing);
-    
-    setListings(results);
-  }
+  const searchWithFilters = useCallback(async (f: SearchFilters, q: string = query) => {
+    setLoading(true);
+    try {
+      const searchRes = await fetch("/api/listings/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters: f, query: q }),
+      });
+      const searchData = await searchRes.json();
+      let results = (searchData.listings ?? []) as Listing[];
+      results = results.filter((l) => l.type === "family" || l.type === "professional");
+      if (f.type) results = results.filter((l) => l.type === f.type);
+      setListings(results);
+    } finally {
+      setLoading(false);
+    }
+  }, [query]);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase
-      .from("listings")
-      .select("*")
-      .eq("is_available", true)
-      .then(({ data, error }) => {
-        let combined: Listing[];
-        if (error || !data || data.length === 0) {
-          combined = SEED_LISTINGS as Listing[];
-        } else {
-          combined = data as Listing[];
-        }
-        setAllListings(combined);
-        applyFilters(filters, combined);
-        if (initialQ) parseAndSearch(initialQ, combined);
-      });
-  }, []);
+    parseAndSearch(initialQ);
+  }, [initialQ, parseAndSearch]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,9 +90,7 @@ function FamilyListingsContent() {
   const clearFilters = () => {
     setQuery("");
     setInputVal("");
-    setFilters({});
-    setAiParsed(false);
-    applyFilters({});
+    parseAndSearch("");
   };
 
   return (
@@ -162,25 +158,25 @@ function FamilyListingsContent() {
           <div className="container">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
               <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.area || ""} onChange={e => { const f = { ...filters, area: e.target.value || undefined }; setFilters(f); applyFilters(f); }}>
+                value={filters.area || ""} onChange={e => { const f = { ...filters, area: e.target.value || undefined }; setFilters(f); searchWithFilters(f); }}>
                 <option value="">All Areas</option>
                 {DHAKA_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
               <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.type || ""} onChange={e => { const f = { ...filters, type: e.target.value as "family" | "professional" || undefined }; setFilters(f); applyFilters(f); }}>
+                value={filters.type || ""} onChange={e => { const f = { ...filters, type: e.target.value as "family" | "professional" || undefined }; setFilters(f); searchWithFilters(f); }}>
                 <option value="">All Types</option>
                 <option value="family">👨‍👩‍👧 Family Flat</option>
                 <option value="professional">💼 Professional Sublet</option>
               </select>
               <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.furnishing || ""} onChange={e => { const f = { ...filters, furnishing: e.target.value as SearchFilters["furnishing"] || undefined }; setFilters(f); applyFilters(f); }}>
+                value={filters.furnishing || ""} onChange={e => { const f = { ...filters, furnishing: e.target.value as SearchFilters["furnishing"] || undefined }; setFilters(f); searchWithFilters(f); }}>
                 <option value="">Any Furnishing</option>
                 <option value="unfurnished">Unfurnished</option>
                 <option value="semi">Semi-Furnished</option>
                 <option value="fully">Fully-Furnished</option>
               </select>
               <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.max_rent || ""} onChange={e => { const f = { ...filters, max_rent: e.target.value ? parseInt(e.target.value) : undefined }; setFilters(f); applyFilters(f); }}>
+                value={filters.max_rent || ""} onChange={e => { const f = { ...filters, max_rent: e.target.value ? parseInt(e.target.value) : undefined }; setFilters(f); searchWithFilters(f); }}>
                 <option value="">Max Rent</option>
                 <option value="15000">Under ৳15,000</option>
                 <option value="25000">Under ৳25,000</option>

@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { geminiFlash, parseGeminiJSON } from "@/lib/gemini";
+import { parseQueryOffline } from "@/lib/parse-query-offline";
 import type { ParsedSearchQuery } from "@/types";
 
 export async function POST(req: NextRequest) {
+  let query = "";
   try {
-    const { query } = await req.json();
-    if (!query?.trim()) {
-      return NextResponse.json({ filters: {} });
+    const body = await req.json();
+    query = body.query ?? "";
+    if (!query.trim()) {
+      return NextResponse.json({ filters: {}, source: "empty" });
     }
 
-    const prompt = `You are a search query parser for a Bangladeshi rental platform called Thikana.
+    const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+    const canUseGemini = apiKey && !apiKey.startsWith("placeholder");
+
+    if (canUseGemini) {
+      try {
+        const prompt = `You are a search query parser for a Bangladeshi rental platform called Thikana.
 Parse the following mixed Bangla/English query into structured JSON search filters.
 
 Query: "${query}"
@@ -33,13 +41,25 @@ Return ONLY valid JSON with these optional fields (null if not mentioned):
   "furnishing": "unfurnished" | "semi" | "fully" | null
 }`;
 
-    const result = await geminiFlash.generateContent(prompt);
-    const text = result.response.text();
-    const filters = parseGeminiJSON<ParsedSearchQuery>(text);
+        const result = await geminiFlash.generateContent(prompt);
+        const text = result.response.text();
+        const filters = parseGeminiJSON<ParsedSearchQuery>(text);
+        if (filters && Object.keys(filters).length > 0) {
+          return NextResponse.json({ filters, source: "gemini" });
+        }
+      } catch (err) {
+        console.warn("Gemini parse failed, using offline parser:", err);
+      }
+    }
 
-    return NextResponse.json({ filters: filters ?? {}, raw: text });
+    const filters = parseQueryOffline(query);
+    return NextResponse.json({ filters, source: "offline" });
   } catch (error) {
     console.error("parse-query error:", error);
-    return NextResponse.json({ filters: {}, error: "Parse failed" }, { status: 500 });
+    return NextResponse.json({
+      filters: query ? parseQueryOffline(query) : {},
+      source: "offline",
+      error: "Parse failed",
+    });
   }
 }
