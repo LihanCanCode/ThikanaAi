@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Home } from "lucide-react";
+import { useState, useActionState } from "react";
+import { Home, Loader2 } from "lucide-react";
 import { UNIVERSITIES } from "@/lib/utils";
+import { signup } from "@/app/auth/actions";
 
 export default function SignupPage() {
   const [role, setRole] = useState<"student" | "landlord" | "professional">("student");
+  const [state, formAction, isPending] = useActionState(signup, null);
 
   return (
     <div style={{
@@ -34,7 +36,7 @@ export default function SignupPage() {
           {/* Role selector */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginBottom: "1.5rem" }}>
             {(["student", "landlord", "professional"] as const).map(r => (
-              <button key={r} onClick={() => setRole(r)} style={{
+              <button key={r} onClick={() => setRole(r)} type="button" style={{
                 padding: "0.6rem 0.5rem", borderRadius: "var(--radius-md)",
                 border: `2px solid ${role === r ? "var(--primary)" : "var(--border)"}`,
                 cursor: "pointer", fontFamily: "inherit",
@@ -47,29 +49,37 @@ export default function SignupPage() {
             ))}
           </div>
 
-          <form style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {state?.error && (
+              <div style={{ padding: "0.75rem", background: "#FEE2E2", color: "#B91C1C", borderRadius: "8px", fontSize: "0.85rem", fontWeight: 500, textAlign: "center" }}>
+                {state.error}
+              </div>
+            )}
+            
+            <input type="hidden" name="role" value={role} />
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
               <div>
                 <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "5px" }}>First Name</label>
-                <input type="text" className="input" placeholder="Rahim" />
+                <input type="text" name="firstName" className="input" placeholder="Rahim" required />
               </div>
               <div>
                 <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "5px" }}>Last Name</label>
-                <input type="text" className="input" placeholder="Uddin" />
+                <input type="text" name="lastName" className="input" placeholder="Uddin" required />
               </div>
             </div>
             <div>
               <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "5px" }}>Email address</label>
-              <input type="email" className="input" placeholder="rahim@example.com" />
+              <input type="email" name="email" className="input" placeholder="rahim@example.com" required />
             </div>
             <div>
               <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "5px" }}>Phone Number</label>
-              <input type="tel" className="input" placeholder="01XXXXXXXXX" />
+              <input type="tel" name="phone" className="input" placeholder="01XXXXXXXXX" required />
             </div>
             {role === "student" && (
               <div>
                 <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "5px" }}>University</label>
-                <select className="input">
+                <select name="university" className="input" required>
                   <option value="">Select your university</option>
                   {UNIVERSITIES.map(u => <option key={u.id} value={u.id}>{u.name} ({u.short_name})</option>)}
                 </select>
@@ -77,10 +87,10 @@ export default function SignupPage() {
             )}
             <div>
               <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "5px" }}>Password</label>
-              <input type="password" className="input" placeholder="Min. 8 characters" />
+              <input type="password" name="password" className="input" placeholder="Min. 8 characters" required minLength={8} />
             </div>
-            <button type="submit" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "0.75rem" }}>
-              Create Account — It&apos;s Free
+            <button type="submit" disabled={isPending} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "0.75rem", opacity: isPending ? 0.7 : 1 }}>
+              {isPending ? <Loader2 size={18} className="animate-spin" /> : "Create Account — It's Free"}
             </button>
           </form>
 

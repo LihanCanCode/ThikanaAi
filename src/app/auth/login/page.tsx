@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Home, Eye, EyeOff } from "lucide-react";
+import { useState, useActionState } from "react";
+import { Home, Eye, EyeOff, Loader2 } from "lucide-react";
+import { login } from "@/app/auth/actions";
 
 export default function LoginPage() {
   const [showPass, setShowPass] = useState(false);
   const [role, setRole] = useState<"student" | "landlord">("student");
+  const [state, formAction, isPending] = useActionState(login, null);
 
   return (
     <div style={{
@@ -52,22 +54,30 @@ export default function LoginPage() {
             ))}
           </div>
 
-          <form style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            {state?.error && (
+              <div style={{ padding: "0.75rem", background: "#FEE2E2", color: "#B91C1C", borderRadius: "8px", fontSize: "0.85rem", fontWeight: 500, textAlign: "center" }}>
+                {state.error}
+              </div>
+            )}
+            
+            <input type="hidden" name="role" value={role} />
+            
             <div>
               <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "5px" }}>Email address</label>
-              <input type="email" className="input" placeholder="you@example.com" />
+              <input type="email" name="email" className="input" placeholder="you@example.com" required />
             </div>
             <div>
               <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "5px" }}>Password</label>
               <div style={{ position: "relative" }}>
-                <input type={showPass ? "text" : "password"} className="input" placeholder="••••••••" style={{ paddingRight: "2.5rem" }} />
+                <input type={showPass ? "text" : "password"} name="password" className="input" placeholder="••••••••" required style={{ paddingRight: "2.5rem" }} />
                 <button type="button" onClick={() => setShowPass(!showPass)} style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: 0 }}>
                   {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
-            <button type="submit" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "0.75rem" }}>
-              Sign In
+            <button type="submit" disabled={isPending} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "0.75rem", opacity: isPending ? 0.7 : 1 }}>
+              {isPending ? <Loader2 size={18} className="animate-spin" /> : "Sign In"}
             </button>
           </form>
 
