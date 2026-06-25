@@ -60,8 +60,7 @@ export async function signup(prevState: any, formData: FormData) {
     return { error: error.message };
   }
 
-  revalidatePath("/", "layout");
-  redirect("/");
+  return { success: true };
 }
 
 export async function logout() {

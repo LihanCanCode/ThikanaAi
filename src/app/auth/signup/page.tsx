@@ -2,13 +2,70 @@
 
 import Link from "next/link";
 import { useState, useActionState } from "react";
-import { Home, Loader2 } from "lucide-react";
+import { Home, Loader2, Mail, CheckCircle2, ArrowRight } from "lucide-react";
 import { UNIVERSITIES } from "@/lib/utils";
 import { signup } from "@/app/auth/actions";
 
 export default function SignupPage() {
-  const [role, setRole] = useState<"student" | "landlord" | "professional">("student");
+  const [role, setRole] = useState<"student" | "landlord" | "professional" >("student");
   const [state, formAction, isPending] = useActionState(signup, null);
+
+  if (state?.success) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #EDF7F0 0%, #F8FAF7 60%, #FEF9F0 100%)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem",
+      }}>
+        <div style={{ width: "100%", maxWidth: "460px" }}>
+          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+            <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: "10px", textDecoration: "none", justifyContent: "center" }}>
+              <div style={{ width: 44, height: 44, background: "var(--primary)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Home size={22} color="#fff" />
+              </div>
+              <div>
+                <span style={{ fontWeight: 800, fontSize: "1.4rem", color: "var(--primary)" }}>Thikana</span>
+                <span className="bangla" style={{ display: "block", fontSize: "0.7rem", color: "var(--text-muted)" }}>ঠিকানা</span>
+              </div>
+            </Link>
+          </div>
+
+          <div className="card" style={{ padding: "2.5rem", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem" }}>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--success-light, #def7ec)", color: "var(--success, #0e9f6e)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Mail size={32} />
+            </div>
+            
+            <div>
+              <h1 style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: "0.5rem" }}>Verify your email</h1>
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", lineHeight: 1.6 }}>
+                We have sent a verification link to your email address. Please click the link in your email to activate your account.
+              </p>
+            </div>
+
+            <div style={{ width: "100%", background: "var(--bg-muted)", borderRadius: "var(--radius-lg)", padding: "1rem", fontSize: "0.82rem", color: "var(--text-secondary)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "6px", color: "var(--text-main)" }}>
+                <CheckCircle2 size={14} color="var(--success)" /> Next steps:
+              </div>
+              <div style={{ textAlign: "left", paddingLeft: "20px" }}>
+                1. Open your email inbox in a new tab.<br />
+                2. Click the verification button/link.<br />
+                3. You will be redirected back to log in.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%", marginTop: "0.5rem" }}>
+              <a href="https://mail.google.com" target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", gap: "8px" }}>
+                Open Gmail <ArrowRight size={16} />
+              </a>
+              <Link href="/auth/login" className="btn btn-outline" style={{ width: "100%", justifyContent: "center" }}>
+                Go to Sign In Page
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -103,3 +160,4 @@ export default function SignupPage() {
     </div>
   );
 }
+
