@@ -76,8 +76,8 @@ export const DHAKA_AREAS = [
 
 /** University list with coordinates */
 export const UNIVERSITIES = [
-  { id: "iut",  name: "Islamic University of Technology",  short_name: "IUT",  lat: 23.9833, lng: 90.4167 },
-  { id: "duet", name: "Dhaka University of Engineering & Technology", short_name: "DUET", lat: 23.9827, lng: 90.4318 },
+  { id: "iut",  name: "Islamic University of Technology",  short_name: "IUT",  lat: 23.9518, lng: 90.3868 },
+  { id: "duet", name: "Dhaka University of Engineering & Technology", short_name: "DUET", lat: 24.0039, lng: 90.4181 },
   { id: "diu",  name: "Daffodil International University", short_name: "DIU",  lat: 23.7513, lng: 90.3576 },
   { id: "buet", name: "Bangladesh University of Engineering and Technology", short_name: "BUET", lat: 23.7264, lng: 90.3928 },
   { id: "du",   name: "University of Dhaka",               short_name: "DU",   lat: 23.7279, lng: 90.3989 },

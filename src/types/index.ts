@@ -87,6 +87,82 @@ export interface RentPayment {
   notes: string | null;
 }
 
+// ── Flatmate Matching Types ──
+
+export type SleepSchedule = "early_bird" | "night_owl" | "flexible";
+export type StudyStyle = "deep_silence" | "light_bg_ok" | "headphones";
+export type CleanlinessLevel = "spotless" | "reasonable" | "relaxed";
+export type SocialStyle = "introvert" | "extrovert" | "balanced";
+export type SmokingPref = "non_smoker" | "smoker_outside" | "smoker_anywhere" | "dont_mind";
+export type GuestPref = "rarely" | "weekends_ok" | "often";
+export type UniPriority = "near_my_uni" | "commutable_both" | "anywhere";
+
+export interface FlatmateProfile {
+  // identity (will be populated from auth in production)
+  id: string;
+  name: string;
+  avatar?: string;
+  university: string;         // university id (e.g. "iut")
+  university_priority: UniPriority;
+
+  // basics — hard filters
+  budget_min: number;
+  budget_max: number;
+  preferred_areas: string[];  // can be empty if uni_priority = "commutable_both"
+  looking_for_count: 1 | 2 | 3; // how many flatmates needed
+  move_in: "within_week" | "this_month" | "next_month" | "flexible";
+  gender_pref: GenderPref;
+
+  // habits — AI scored
+  sleep_schedule: SleepSchedule;
+  wake_up: "before_7" | "7_to_9" | "after_9";
+  study_style: StudyStyle;
+  work_from_home: "yes_daily" | "sometimes" | "no";
+
+  // lifestyle — AI scored
+  smoking: SmokingPref;
+  cooking: "cook_share" | "cook_alone" | "dont_cook" | "flexible";
+  kitchen_cleanliness: CleanlinessLevel;
+  guests: GuestPref;
+
+  // personality — AI scored
+  cleanliness: CleanlinessLevel;
+  noise_level: "quiet" | "music_tv_ok" | "dont_care";
+  social_style: SocialStyle;
+  has_pet: boolean;
+  pet_ok: boolean;
+
+  // free text — fed to Gemini
+  self_description: string;   // "describe yourself in 2 words"
+  ideal_flatmate: string;     // "ideal flatmate in 1 sentence"
+}
+
+export interface MatchResult {
+  profile: FlatmateProfile;
+  score: number;             // 0–100
+  green_flags: string[];     // top 3 positives
+  yellow_flags: string[];    // top 2 cautions
+  summary: string;           // one-line AI summary
+  suggested_areas: string[]; // AI-suggested areas for both
+  cross_uni: boolean;        // true if different universities
+  commute_note?: string;     // e.g. "Mirpur-1 ~25 min for both"
+}
+
+export interface FlickRequest {
+  from_id: string;
+  to_id: string;
+  status: "pending" | "accepted" | "declined";
+  group_id?: string;        // set once accepted
+}
+
+export interface FlatmateGroup {
+  id: string;
+  members: FlatmateProfile[];
+  combined_budget: number;
+  suggested_areas: string[];
+  created_at: string;
+}
+
 // AI-related
 export interface ParsedSearchQuery {
   area: string | null;

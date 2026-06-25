@@ -1,21 +1,70 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { MapPin, Bed, Bath, Shield, ChevronLeft, MessageCircle, Send, Loader2, Sparkles, CheckCircle, Home } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
+import ListingMap from "@/components/listings/ListingMap";
 import { SEED_LISTINGS } from "@/lib/seed-listings";
+import { createClient } from "@/lib/supabase/client";
 import { formatBDT, timeAgo, trustColor, UNIVERSITIES, getDistanceKm } from "@/lib/utils";
 import type { Listing } from "@/types";
 
 export default function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const listing = SEED_LISTINGS.find(l => l.id === id) as Listing | undefined;
+  const [listing, setListing] = useState<Listing | null | undefined>(undefined); // undefined = loading
+
+  useEffect(() => {
+    // First try to find in seed data (fast)
+    const seed = SEED_LISTINGS.find(l => l.id === id) as Listing | undefined;
+    if (seed) {
+      setListing(seed);
+      return;
+    }
+    // Otherwise fetch from Supabase
+    const supabase = createClient();
+    supabase
+      .from("listings")
+      .select("*")
+      .eq("id", id)
+      .single()
+      .then(({ data, error }) => {
+        if (error || !data) {
+          setListing(null); // not found
+        } else {
+          setListing(data as Listing);
+        }
+      });
+  }, [id]);
+
 
   const [activePhoto, setActivePhoto] = useState(0);
   const [qaQuestion, setQaQuestion] = useState("");
   const [qaAnswer, setQaAnswer] = useState("");
   const [qaLoading, setQaLoading] = useState(false);
+  
+  // Find the closest university to use as default for the map route
+  const defaultUniv = listing ? UNIVERSITIES.reduce((closest, u) => {
+    if (!listing.lat || !listing.lng) return closest;
+    const d1 = getDistanceKm(listing.lat, listing.lng, closest.lat, closest.lng);
+    const d2 = getDistanceKm(listing.lat, listing.lng, u.lat, u.lng);
+    return d2 < d1 ? u : closest;
+  }, UNIVERSITIES[0]).id : "iut";
+  
+  const [selectedUniv, setSelectedUniv] = useState(defaultUniv);
+
+  if (listing === undefined) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
+        <Navbar />
+        <div style={{ textAlign: "center", padding: "5rem 1rem", color: "var(--text-muted)" }}>
+          <Loader2 size={36} style={{ animation: "spin 1s linear infinite", marginBottom: "1rem", color: "var(--primary)" }} />
+          <p>Loading listing...</p>
+        </div>
+        <style jsx global>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   if (!listing) {
     return (
@@ -29,6 +78,7 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
       </div>
     );
   }
+
 
   const trustScore = listing.trust_score ?? 0;
   const trustColorVal = trustScore >= 75 ? "var(--success)" : trustScore >= 45 ? "var(--warning)" : "var(--danger)";
@@ -174,6 +224,29 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* Map & Routing */}
+            {listing.lat && listing.lng && (
+              <div className="card" style={{ padding: "1.5rem", marginBottom: "1rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "10px" }}>
+                  <h2 style={{ fontSize: "1rem", fontWeight: 700, margin: 0 }}>🗺️ Map & Route</h2>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-secondary)" }}>Route to:</span>
+                    <select className="input" style={{ width: "auto", padding: "0.3rem 0.6rem", fontSize: "0.85rem" }}
+                      value={selectedUniv} onChange={e => setSelectedUniv(e.target.value)}>
+                      {UNIVERSITIES.map(u => <option key={u.id} value={u.id}>{u.short_name}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ height: "450px", borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border)" }}>
+                  <ListingMap
+                    listings={[listing]}
+                    selectedUniversityId={selectedUniv}
+                    activeListingId={listing.id}
+                  />
                 </div>
               </div>
             )}

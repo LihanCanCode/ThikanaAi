@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Home, Search, PlusCircle, LayoutDashboard, Menu, X } from "lucide-react";
+import { Home, Search, PlusCircle, LayoutDashboard, Menu, X, Users } from "lucide-react";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -44,6 +44,7 @@ export default function Navbar() {
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="desktop-nav">
           <NavLink href="/listings" icon={<Search size={15} />}>Student Rent</NavLink>
           <NavLink href="/listings/family" icon={<Search size={15} />}>Family Rent</NavLink>
+          <NavLink href="/student/feed" icon={<Users size={15} />}>Find Flatmate</NavLink>
           <NavLink href="/listings/new" icon={<PlusCircle size={15} />}>List Property</NavLink>
           <NavLink href="/landlord/dashboard" icon={<LayoutDashboard size={15} />}>Dashboard</NavLink>
           <NavLink href="/student/finance" icon={<span style={{ fontSize: "15px" }}>💰</span>}>Finance</NavLink>
@@ -78,8 +79,8 @@ export default function Navbar() {
         }}>
           <MobileNavLink href="/listings" onClick={() => setOpen(false)}>🎓 Student Rent</MobileNavLink>
           <MobileNavLink href="/listings/family" onClick={() => setOpen(false)}>🏠 Family Rent</MobileNavLink>
+          <MobileNavLink href="/student/feed" onClick={() => setOpen(false)}>🤝 Find Flatmate</MobileNavLink>
           <MobileNavLink href="/listings/new" onClick={() => setOpen(false)}>➕ List Property</MobileNavLink>
-
           <MobileNavLink href="/landlord/dashboard" onClick={() => setOpen(false)}>📊 Dashboard</MobileNavLink>
           <MobileNavLink href="/student/finance" onClick={() => setOpen(false)}>💰 Finance Tools</MobileNavLink>
           <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "0.5rem 0" }} />

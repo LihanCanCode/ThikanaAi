@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Search, SlidersHorizontal, MapPin, X, Loader2, Sparkles, Map as MapIcon, List as ListIcon } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
 import ListingCard from "@/components/listings/ListingCard";
-import ListingMap from "@/components/listings/ListingMap";
 import { SEED_LISTINGS } from "@/lib/seed-listings";
+import { createClient } from "@/lib/supabase/client";
 import { DHAKA_AREAS, UNIVERSITIES, getDistanceKm } from "@/lib/utils";
 import type { Listing, SearchFilters } from "@/types";
 
@@ -17,6 +17,7 @@ function StudentListingsContent() {
   const [query, setQuery] = useState(initialQ);
   const [inputVal, setInputVal] = useState(initialQ);
   const [filters, setFilters] = useState<SearchFilters>({ type: "student" });
+  const [allListings, setAllListings] = useState<Listing[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
   const [aiParsed, setAiParsed] = useState(false);
@@ -24,15 +25,13 @@ function StudentListingsContent() {
   
   // Student Specific university search states
   const [selectedUniv, setSelectedUniv] = useState("iut"); // default to IUT
-  const [activeListingId, setActiveListingId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"split" | "list" | "map">("split");
 
-  const parseAndSearch = useCallback(async (q: string) => {
+  const parseAndSearch = useCallback(async (q: string, listSource?: Listing[]) => {
     if (!q.trim()) {
       const f = { type: "student" as const };
       setFilters(f);
       setAiParsed(false);
-      applyFilters(f);
+      applyFilters(f, "", listSource);
       return;
     }
     setLoading(true);
@@ -46,16 +45,17 @@ function StudentListingsContent() {
       const f: SearchFilters = { ...data.filters, type: "student" };
       setFilters(f);
       setAiParsed(true);
-      applyFilters(f);
+      applyFilters(f, q, listSource);
     } catch {
-      applyFilters({ type: "student" });
+      applyFilters({ type: "student" }, q, listSource);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  function applyFilters(f: SearchFilters) {
-    let results = SEED_LISTINGS.filter(l => l.type === "student") as Listing[];
+  function applyFilters(f: SearchFilters, currentQuery?: string, listSource?: Listing[]) {
+    const source = listSource || allListings;
+    let results = source.filter(l => l.type === "student") as Listing[];
     if (f.area) results = results.filter(l => l.area.toLowerCase().includes(f.area!.toLowerCase()));
     if (f.max_rent) results = results.filter(l => l.rent_bdt <= f.max_rent!);
     if (f.min_rent) results = results.filter(l => l.rent_bdt >= f.min_rent!);
@@ -64,18 +64,44 @@ function StudentListingsContent() {
       results = results.filter(l => l.for_gender === f.for_gender || l.for_gender === "any");
     }
     if (f.furnishing) results = results.filter(l => l.furnishing === f.furnishing);
+    
+    const searchString = currentQuery !== undefined ? currentQuery : query;
+    if (searchString && searchString.trim() !== "") {
+      const qs = searchString.toLowerCase();
+      results = results.filter(l => 
+        l.title_en.toLowerCase().includes(qs) || 
+        l.area.toLowerCase().includes(qs) || 
+        (l.description_en && l.description_en.toLowerCase().includes(qs)) ||
+        (l.title_bn && l.title_bn.includes(qs))
+      );
+    }
     setListings(results);
   }
 
   useEffect(() => {
-    // Initial filter applying
-    applyFilters(filters);
-    if (initialQ) parseAndSearch(initialQ);
+    // Fetch live from Supabase, fallback to seed data
+    const supabase = createClient();
+    supabase
+      .from("listings")
+      .select("*")
+      .eq("is_available", true)
+      .then(({ data, error }) => {
+        let combined: Listing[];
+        if (error || !data || data.length === 0) {
+          combined = SEED_LISTINGS as Listing[];
+        } else {
+          combined = data as Listing[];
+        }
+        setAllListings(combined);
+        applyFilters(filters, initialQ, combined);
+        if (initialQ) parseAndSearch(initialQ, combined);
+      });
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setQuery(inputVal);
+    applyFilters(filters, inputVal); // Apply text filter immediately
     parseAndSearch(inputVal);
   };
 
@@ -85,7 +111,7 @@ function StudentListingsContent() {
     const f = { type: "student" as const };
     setFilters(f);
     setAiParsed(false);
-    applyFilters(f);
+    applyFilters(f, "");
   };
 
   const getDistance = (listing: Listing) => {
@@ -148,15 +174,6 @@ function StudentListingsContent() {
               Showing {listings.length} student listings near {UNIVERSITIES.find(u => u.id === selectedUniv)?.short_name || "campus"}
             </span>
 
-            {/* View Mode controls for mobile */}
-            <div className="view-toggle" style={{ display: "none", gap: "6px" }}>
-              <button className={`btn ${viewMode === "list" ? "btn-primary" : "btn-outline"}`} style={{ padding: "4px 10px", fontSize: "0.75rem" }} onClick={() => setViewMode("list")}>
-                <ListIcon size={12} /> List
-              </button>
-              <button className={`btn ${viewMode === "map" ? "btn-primary" : "btn-outline"}`} style={{ padding: "4px 10px", fontSize: "0.75rem" }} onClick={() => setViewMode("map")}>
-                <MapIcon size={12} /> Map
-              </button>
-            </div>
           </div>
 
           {/* AI parsed tag display */}
@@ -214,74 +231,30 @@ function StudentListingsContent() {
         </div>
       )}
 
-      {/* Main split-screen container */}
-      <div style={{ display: "flex", flex: 1, position: "relative", overflow: "hidden" }}>
-        
-        {/* Left Side: Listing List */}
-        <div className="list-panel" style={{
-          width: "45%",
-          overflowY: "auto",
-          padding: "1.5rem",
-          borderRight: "1px solid var(--border)",
-          height: "calc(100vh - 128px)",
-        }}>
-          {sortedListings.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "4rem 0", color: "var(--text-muted)" }}>
-              <div style={{ fontSize: "3rem" }}>🔍</div>
-              <h3 style={{ fontWeight: 600 }}>No Student flats found</h3>
-              <p style={{ fontSize: "0.85rem" }}>Try changing filters or varsity location.</p>
-              <button onClick={clearFilters} className="btn btn-outline" style={{ marginTop: "1rem" }}>Clear Filters</button>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "1rem" }}>
-              {sortedListings.map(listing => (
-                <div
-                  key={listing.id}
-                  onMouseEnter={() => setActiveListingId(listing.id)}
-                  style={{
-                    border: listing.id === activeListingId ? "1.5px solid var(--primary)" : "1px solid transparent",
-                    borderRadius: "var(--radius-lg)",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  <ListingCard listing={listing} distanceKm={getDistance(listing)} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right Side: Mapbox Route Map */}
-        <div className="map-panel" style={{
-          flex: 1,
-          height: "calc(100vh - 128px)",
-          position: "relative",
-        }}>
-          <ListingMap
-            listings={listings}
-            selectedUniversityId={selectedUniv}
-            activeListingId={activeListingId}
-            onSelectListing={(id) => setActiveListingId(id)}
-          />
-        </div>
+      {/* Main Container */}
+      <div className="container" style={{ padding: "2rem 1rem", flex: 1 }}>
+        {sortedListings.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "4rem 0", color: "var(--text-muted)", background: "var(--bg-surface)", borderRadius: "var(--radius-lg)" }}>
+            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🔍</div>
+            <h3 style={{ fontWeight: 600, fontSize: "1.2rem", color: "var(--text-main)", marginBottom: "0.5rem" }}>No Student flats found</h3>
+            <p style={{ fontSize: "0.95rem" }}>Try changing your search terms, filters, or varsity location.</p>
+            <button onClick={clearFilters} className="btn btn-outline" style={{ marginTop: "1.5rem" }}>Clear Search & Filters</button>
+          </div>
+        ) : (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gap: "1.5rem",
+          }}>
+            {sortedListings.map(listing => (
+              <ListingCard key={listing.id} listing={listing} distanceKm={getDistance(listing)} />
+            ))}
+          </div>
+        )}
       </div>
 
       <style jsx global>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        
-        @media (max-width: 768px) {
-          .view-toggle { display: flex !important; }
-          .list-panel {
-            width: 100% !important;
-            display: ${viewMode === "map" ? "none" : "block"} !important;
-            height: auto !important;
-          }
-          .map-panel {
-            width: 100% !important;
-            display: ${viewMode === "list" ? "none" : "block"} !important;
-            height: 400px !important;
-          }
-        }
       `}</style>
     </div>
   );

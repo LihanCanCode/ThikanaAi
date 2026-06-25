@@ -6,6 +6,7 @@ import { Search, SlidersHorizontal, X, Loader2, Sparkles, Building, Briefcase } 
 import Navbar from "@/components/shared/Navbar";
 import ListingCard from "@/components/listings/ListingCard";
 import { SEED_LISTINGS } from "@/lib/seed-listings";
+import { createClient } from "@/lib/supabase/client";
 import { DHAKA_AREAS } from "@/lib/utils";
 import type { Listing, SearchFilters } from "@/types";
 
@@ -16,16 +17,17 @@ function FamilyListingsContent() {
   const [query, setQuery] = useState(initialQ);
   const [inputVal, setInputVal] = useState(initialQ);
   const [filters, setFilters] = useState<SearchFilters>({});
+  const [allListings, setAllListings] = useState<Listing[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
   const [aiParsed, setAiParsed] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
-  const parseAndSearch = useCallback(async (q: string) => {
+  const parseAndSearch = useCallback(async (q: string, listSource?: Listing[]) => {
     if (!q.trim()) {
       setFilters({});
       setAiParsed(false);
-      applyFilters({});
+      applyFilters({}, listSource);
       return;
     }
     setLoading(true);
@@ -39,17 +41,18 @@ function FamilyListingsContent() {
       const f: SearchFilters = data.filters ?? {};
       setFilters(f);
       setAiParsed(true);
-      applyFilters(f);
+      applyFilters(f, listSource);
     } catch {
-      applyFilters({});
+      applyFilters({}, listSource);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  function applyFilters(f: SearchFilters) {
+  function applyFilters(f: SearchFilters, listSource?: Listing[]) {
+    const source = listSource || allListings;
     // Only display Family or Professional listings (exclude student)
-    let results = SEED_LISTINGS.filter(l => l.type === "family" || l.type === "professional") as Listing[];
+    let results = source.filter(l => l.type === "family" || l.type === "professional") as Listing[];
     
     if (f.area) results = results.filter(l => l.area.toLowerCase().includes(f.area!.toLowerCase()));
     if (f.max_rent) results = results.filter(l => l.rent_bdt <= f.max_rent!);
@@ -62,8 +65,22 @@ function FamilyListingsContent() {
   }
 
   useEffect(() => {
-    applyFilters(filters);
-    if (initialQ) parseAndSearch(initialQ);
+    const supabase = createClient();
+    supabase
+      .from("listings")
+      .select("*")
+      .eq("is_available", true)
+      .then(({ data, error }) => {
+        let combined: Listing[];
+        if (error || !data || data.length === 0) {
+          combined = SEED_LISTINGS as Listing[];
+        } else {
+          combined = data as Listing[];
+        }
+        setAllListings(combined);
+        applyFilters(filters, combined);
+        if (initialQ) parseAndSearch(initialQ, combined);
+      });
   }, []);
 
   const handleSearch = (e: React.FormEvent) => {

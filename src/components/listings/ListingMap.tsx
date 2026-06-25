@@ -25,6 +25,7 @@ export default function ListingMap({
   const univMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
   const [routeInfo, setRouteInfo] = useState<{ distanceKm: number; durationMins: number } | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 
@@ -75,6 +76,7 @@ export default function ListingMap({
           "line-opacity": 0.85,
         },
       });
+      setMapLoaded(true);
     });
 
     return () => {
@@ -96,37 +98,28 @@ export default function ListingMap({
 
     listings.forEach((listing) => {
       if (listing.lat && listing.lng) {
-        // Create custom HTML element for marker
+        // House marker — green pill with label
         const el = document.createElement("div");
-        el.className = "custom-marker";
-        el.style.width = "30px";
-        el.style.height = "30px";
-        el.style.borderRadius = "50%";
-        el.style.backgroundColor = listing.id === activeListingId ? "var(--accent)" : "var(--primary)";
-        el.style.border = "2px solid #white";
-        el.style.boxShadow = "var(--shadow-md)";
-        el.style.display = "flex";
-        el.style.alignItems = "center";
-        el.style.justifyContent = "center";
-        el.style.color = "#white";
-        el.style.fontWeight = "bold";
-        el.style.fontSize = "12px";
-        el.style.cursor = "pointer";
-        el.innerHTML = "🏠";
+        el.style.cssText = [
+          "display:flex","align-items:center","gap:4px",
+          "background:#1a7a3c","color:#fff",
+          "padding:5px 10px","border-radius:999px",
+          "font-size:12px","font-weight:700",
+          "box-shadow:0 2px 8px rgba(0,0,0,0.3)",
+          "border:2px solid #fff",
+          "cursor:pointer",
+          "white-space:nowrap",
+          listing.id === activeListingId ? "transform:scale(1.1);z-index:10" : "",
+        ].join(";");
+        el.innerHTML = `🏠 <span>৳${(listing.rent_bdt/1000).toFixed(0)}k</span>`;
 
-        if (listing.id === activeListingId) {
-          el.style.transform = "scale(1.2)";
-          el.style.zIndex = "10";
-        }
-
-        const marker = new mapboxgl.Marker(el)
+        const marker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
           .setLngLat([listing.lng, listing.lat])
+          .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`<strong>${listing.title_en}</strong><br/>${listing.area}, Dhaka`))
           .addTo(map);
 
         el.addEventListener("click", () => {
-          if (onSelectListing) {
-            onSelectListing(listing.id);
-          }
+          if (onSelectListing) onSelectListing(listing.id);
         });
 
         markersRef.current.push(marker);
@@ -137,7 +130,7 @@ export default function ListingMap({
   // Handle university selection & Routing path
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapLoaded) return;
 
     // Remove old varsity marker
     if (univMarkerRef.current) {
@@ -166,22 +159,22 @@ export default function ListingMap({
     const univ = UNIVERSITIES.find((u) => u.id === selectedUniversityId);
     if (!univ) return;
 
-    // Create custom University marker
+    // University marker — blue pill with short name label
     const el = document.createElement("div");
-    el.style.width = "36px";
-    el.style.height = "36px";
-    el.style.borderRadius = "8px";
-    el.style.backgroundColor = "var(--accent)";
-    el.style.display = "flex";
-    el.style.alignItems = "center";
-    el.style.justifyContent = "center";
-    el.style.fontSize = "16px";
-    el.style.border = "2px solid #fff";
-    el.style.boxShadow = "var(--shadow-lg)";
-    el.innerHTML = "🎓";
+    el.style.cssText = [
+      "display:flex","align-items:center","gap:5px",
+      "background:#1a56a0","color:#fff",
+      "padding:5px 10px","border-radius:999px",
+      "font-size:12px","font-weight:700",
+      "box-shadow:0 2px 8px rgba(0,0,0,0.3)",
+      "border:2px solid #fff",
+      "white-space:nowrap",
+    ].join(";");
+    el.innerHTML = `🎓 <span>${univ.short_name}</span>`;
 
-    const univMarker = new mapboxgl.Marker(el)
+    const univMarker = new mapboxgl.Marker({ element: el, anchor: "bottom" })
       .setLngLat([univ.lng, univ.lat])
+      .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`<strong>${univ.short_name}</strong><br/>${univ.name}`))
       .addTo(map);
 
     univMarkerRef.current = univMarker;
@@ -221,7 +214,7 @@ export default function ListingMap({
         }
       });
     }
-  }, [selectedUniversityId, activeListingId, listings, token]);
+  }, [selectedUniversityId, activeListingId, listings, token, mapLoaded]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>

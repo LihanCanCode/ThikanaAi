@@ -12,6 +12,16 @@ export const geminiFlash = genAI.getGenerativeModel({
   },
 });
 
+/** Matching model — higher token limit to score multiple candidates at once */
+export const geminiMatch = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+  generationConfig: {
+    temperature: 0.4,
+    topP: 0.9,
+    maxOutputTokens: 4096,
+  },
+});
+
 /** Pro model for neighborhood Q&A (grounded) */
 export const geminiPro = genAI.getGenerativeModel({
   model: "gemini-1.5-pro",
