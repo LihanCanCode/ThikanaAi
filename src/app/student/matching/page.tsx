@@ -45,6 +45,7 @@ export default function MatchingPage() {
 
   async function handleFind() {
     if (!draft.name?.trim()) { setError("Please enter your name."); return; }
+    if (!draft.contact_info?.trim()) { setError("Please enter your phone/WhatsApp."); return; }
     if (!draft.university) { setError("Please select your university."); return; }
     if (!draft.budget_max) { setError("Please enter your budget."); return; }
     if (!draft.sleep_schedule) { setError("Please select your sleep schedule."); return; }
@@ -78,6 +79,7 @@ export default function MatchingPage() {
         pet_ok: true,
         self_description: draft.self_description ?? "",
         ideal_flatmate: "",
+        contact_info: draft.contact_info ?? "",
       };
 
       const saved = await saveFlatmateProfile(profile);
@@ -136,19 +138,30 @@ export default function MatchingPage() {
           boxShadow: "var(--shadow-sm)",
         }}>
 
-          {/* Q1 — Name + University */}
-          <Field label="1. Who are you?" hint="Tell us your name and university.">
-            <input
-              value={draft.name ?? ""}
-              onChange={(e) => set("name", e.target.value)}
-              placeholder="Your name (e.g. Rahim Hossain)"
-              style={{
-                width: "100%", padding: "10px 14px", marginBottom: "12px",
-                borderRadius: "var(--radius)", border: "1.5px solid var(--border)",
-                fontSize: "0.95rem", background: "var(--bg)", color: "var(--text-main)",
-                boxSizing: "border-box",
-              }}
-            />
+          {/* Q1 — Name, Contact + University */}
+          <Field label="1. Who are you?" hint="Tell us your name, contact info, and university.">
+            <div style={{ display: "flex", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
+              <input
+                value={draft.name ?? ""}
+                onChange={(e) => set("name", e.target.value)}
+                placeholder="Your name (e.g. Rahim)"
+                style={{
+                  flex: 1, minWidth: "180px", padding: "10px 14px",
+                  borderRadius: "var(--radius)", border: "1.5px solid var(--border)",
+                  fontSize: "0.95rem", background: "var(--bg)", color: "var(--text-main)",
+                }}
+              />
+              <input
+                value={draft.contact_info ?? ""}
+                onChange={(e) => set("contact_info", e.target.value)}
+                placeholder="WhatsApp / Phone"
+                style={{
+                  flex: 1, minWidth: "160px", padding: "10px 14px",
+                  borderRadius: "var(--radius)", border: "1.5px solid var(--border)",
+                  fontSize: "0.95rem", background: "var(--bg)", color: "var(--text-main)",
+                }}
+              />
+            </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
               {UNIVERSITIES.map((u) => (
                 <Chip key={u.id} label={u.short_name}

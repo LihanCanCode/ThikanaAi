@@ -41,6 +41,7 @@ export function rowToFlatmateProfile(row: FlatmateProfileRow): FlatmateProfile {
     pet_ok: data.pet_ok ?? true,
     self_description: data.self_description ?? "",
     ideal_flatmate: data.ideal_flatmate ?? "",
+    contact_info: data.contact_info,
     avatar: data.avatar as string | undefined,
   };
 }

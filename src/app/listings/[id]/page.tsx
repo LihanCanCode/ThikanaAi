@@ -80,8 +80,11 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
   }
 
 
-  const trustScore = listing.trust_score ?? 0;
-  const trustColorVal = trustScore >= 75 ? "var(--success)" : trustScore >= 45 ? "var(--warning)" : "var(--danger)";
+  const trustScore = listing.trust_score ?? null;
+  const breakdown = (listing as any).trust_score_breakdown ?? null;
+  const trustColorVal = trustScore !== null
+    ? (trustScore >= 75 ? "var(--success)" : trustScore >= 45 ? "var(--warning)" : "var(--danger)")
+    : "var(--text-muted)";
 
   const askNeighborhood = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -304,10 +307,13 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
               <h3 style={{ fontSize: "0.9rem", fontWeight: 700, marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
                 <Shield size={15} style={{ color: trustColorVal }} /> AI Trust Score
               </h3>
+              {/* Circle gauge */}
               <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
                 <div style={{
                   width: 72, height: 72, borderRadius: "50%",
-                  background: `conic-gradient(${trustColorVal} ${trustScore * 3.6}deg, var(--bg-muted) 0deg)`,
+                  background: trustScore !== null
+                    ? `conic-gradient(${trustColorVal} ${trustScore * 3.6}deg, var(--bg-muted) 0deg)`
+                    : "var(--bg-muted)",
                   display: "flex", alignItems: "center", justifyContent: "center", position: "relative",
                 }}>
                   <div style={{
@@ -316,34 +322,56 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
                     display: "flex", alignItems: "center", justifyContent: "center",
                     flexDirection: "column",
                   }}>
-                    <span style={{ fontWeight: 800, fontSize: "1.1rem", color: trustColorVal }}>{trustScore}</span>
-                    <span style={{ fontSize: "0.55rem", color: "var(--text-muted)" }}>/ 100</span>
+                    {trustScore !== null ? (
+                      <>
+                        <span style={{ fontWeight: 800, fontSize: "1.1rem", color: trustColorVal }}>{trustScore}</span>
+                        <span style={{ fontSize: "0.55rem", color: "var(--text-muted)" }}>/ 100</span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: "0.6rem", color: "var(--text-muted)", textAlign: "center", lineHeight: 1.2 }}>AI<br/>Analyzing</span>
+                    )}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontWeight: 700, color: trustColorVal, fontSize: "0.95rem" }}>
-                    {trustScore >= 75 ? "High Trust" : trustScore >= 45 ? "Moderate" : "Low Trust"}
+                    {trustScore !== null
+                      ? (trustScore >= 75 ? "High Trust" : trustScore >= 45 ? "Moderate" : "Low Trust")
+                      : "Analyzing…"}
                   </div>
                   <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Verified by Thikana AI</div>
                 </div>
               </div>
-              {[
-                { label: "Price fairness", score: 30, max: 30 },
-                { label: "Photo quality", score: Math.min((listing.photos.length * 5), 20), max: 20 },
-                { label: "Description detail", score: listing.description_en ? 20 : 0, max: 20 },
-                { label: "No duplicate found", score: 15, max: 15 },
-                { label: "Original photos", score: 15, max: 15 },
-              ].map(item => (
-                <div key={item.label} style={{ marginBottom: "8px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "3px" }}>
-                    <span style={{ color: "var(--text-muted)" }}>{item.label}</span>
-                    <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{item.score}/{item.max}</span>
+
+              {/* Score bars — real data from DB */}
+              {breakdown ? (
+                [
+                  { label: "Price fairness", score: breakdown.priceFairness ?? 0, max: 25 },
+                  { label: "Photo quality", score: breakdown.photoQuality ?? 0, max: 25 },
+                  { label: "Organized room", score: breakdown.organizedRoom ?? 0, max: 25 },
+                  { label: "No duplicate found", score: breakdown.noDuplicates ?? 0, max: 25 },
+                ].map(item => (
+                  <div key={item.label} style={{ marginBottom: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "3px" }}>
+                      <span style={{ color: "var(--text-muted)" }}>{item.label}</span>
+                      <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{item.score}/{item.max}</span>
+                    </div>
+                    <div style={{ height: 4, background: "var(--bg-muted)", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{ width: `${(item.score / item.max) * 100}%`, height: "100%", background: item.score >= item.max ? "var(--success)" : item.score >= item.max * 0.5 ? "#F59E0B" : "var(--danger)", borderRadius: 2 }} />
+                    </div>
                   </div>
-                  <div style={{ height: 4, background: "var(--bg-muted)", borderRadius: 2, overflow: "hidden" }}>
-                    <div style={{ width: `${(item.score / item.max) * 100}%`, height: "100%", background: item.score >= item.max * 0.8 ? "var(--success)" : item.score >= item.max * 0.5 ? "var(--warning)" : "var(--danger)", borderRadius: 2 }} />
-                  </div>
+                ))
+              ) : (
+                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textAlign: "center", padding: "0.5rem 0" }}>
+                  {trustScore !== null ? "Score details unavailable" : "🔍 AI is analyzing this listing…"}
                 </div>
-              ))}
+              )}
+
+              {/* AI Reasoning */}
+              {breakdown?.reasoning && (
+                <div style={{ marginTop: "10px", padding: "10px", background: "var(--bg-subtle)", borderRadius: "8px", fontSize: "0.78rem", color: "var(--text-secondary)", fontStyle: "italic", lineHeight: 1.5 }}>
+                  "{breakdown.reasoning}"
+                </div>
+              )}
             </div>
 
             {/* Contact card */}

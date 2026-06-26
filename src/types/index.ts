@@ -135,6 +135,7 @@ export interface FlatmateProfile {
   // free text — fed to Gemini
   self_description: string;   // "describe yourself in 2 words"
   ideal_flatmate: string;     // "ideal flatmate in 1 sentence"
+  contact_info?: string;      // "Phone / WhatsApp for accepted matches"
 }
 
 export interface MatchResult {

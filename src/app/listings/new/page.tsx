@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { generateTrustScore } from "@/app/actions/ai-trust-score";
 import Navbar from "@/components/shared/Navbar";
 import { Sparkles, Loader2, CheckCircle, ChevronRight, MapPin, Upload, X, Navigation } from "lucide-react";
 import { DHAKA_AREAS } from "@/lib/utils";
@@ -181,10 +182,24 @@ export default function NewListingPage() {
         utilities_included: form.utilities,
         photos: photoUrls,
         is_available: true,
-        trust_score: 85,
+        // trust_score is NOT set here — AI will calculate it in the background!
       });
 
       if (error) throw new Error(error.message);
+
+      // Fetch the newly created listing ID and trigger AI trust score in background
+      const { data: newListing } = await supabase
+        .from("listings")
+        .select("id")
+        .eq("landlord_id", user?.id ?? "")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (newListing?.id) {
+        // Fire-and-forget: don't block the redirect!
+        generateTrustScore(newListing.id, "listing").catch(console.error);
+      }
 
       // 4. Redirect
       if (form.type === "family" || form.type === "professional") {

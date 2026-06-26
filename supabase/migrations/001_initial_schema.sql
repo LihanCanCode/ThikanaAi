@@ -80,9 +80,11 @@ CREATE TABLE IF NOT EXISTS flatmate_profiles (
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+-- Standard unique constraint on user_id (allows multiple NULLs for seed profiles, but enforces 1-to-1 for users)
+ALTER TABLE flatmate_profiles DROP CONSTRAINT IF EXISTS flatmate_profiles_user_id_key;
+ALTER TABLE flatmate_profiles ADD CONSTRAINT flatmate_profiles_user_id_key UNIQUE (user_id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS flatmate_profiles_user_id_unique
-  ON flatmate_profiles(user_id) WHERE user_id IS NOT NULL;
+
 
 -- Flatmate interest ("Flick")
 CREATE TABLE IF NOT EXISTS flatmate_flicks (
@@ -132,35 +134,87 @@ ALTER TABLE flatmate_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE flatmate_flicks ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: read all, update own
+DROP POLICY IF EXISTS "profiles_select" ON profiles;
 CREATE POLICY "profiles_select" ON profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "profiles_update_own" ON profiles;
 CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "profiles_insert_own" ON profiles;
 CREATE POLICY "profiles_insert_own" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Listings: public read available, landlords manage own
+DROP POLICY IF EXISTS "listings_select" ON listings;
 CREATE POLICY "listings_select" ON listings FOR SELECT USING (is_available = true OR landlord_id = auth.uid());
+DROP POLICY IF EXISTS "listings_insert" ON listings;
 CREATE POLICY "listings_insert" ON listings FOR INSERT WITH CHECK (landlord_id = auth.uid() OR landlord_id IS NULL);
+DROP POLICY IF EXISTS "listings_update_own" ON listings;
 CREATE POLICY "listings_update_own" ON listings FOR UPDATE USING (landlord_id = auth.uid());
+DROP POLICY IF EXISTS "listings_delete_own" ON listings;
 CREATE POLICY "listings_delete_own" ON listings FOR DELETE USING (landlord_id = auth.uid());
 
 -- Tenants: landlord only
+DROP POLICY IF EXISTS "tenants_landlord_all" ON tenants;
 CREATE POLICY "tenants_landlord_all" ON tenants FOR ALL USING (landlord_id = auth.uid());
 
 -- Rent payments: via tenant ownership
+DROP POLICY IF EXISTS "payments_landlord_select" ON rent_payments;
 CREATE POLICY "payments_landlord_select" ON rent_payments FOR SELECT
   USING (EXISTS (SELECT 1 FROM tenants t WHERE t.id = tenant_id AND t.landlord_id = auth.uid()));
+DROP POLICY IF EXISTS "payments_landlord_insert" ON rent_payments;
 CREATE POLICY "payments_landlord_insert" ON rent_payments FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM tenants t WHERE t.id = tenant_id AND t.landlord_id = auth.uid()));
+DROP POLICY IF EXISTS "payments_landlord_update" ON rent_payments;
 CREATE POLICY "payments_landlord_update" ON rent_payments FOR UPDATE
   USING (EXISTS (SELECT 1 FROM tenants t WHERE t.id = tenant_id AND t.landlord_id = auth.uid()));
 
 -- Flatmate profiles: public read active, users manage own
+DROP POLICY IF EXISTS "flatmate_select" ON flatmate_profiles;
 CREATE POLICY "flatmate_select" ON flatmate_profiles FOR SELECT USING (is_active = true);
+DROP POLICY IF EXISTS "flatmate_insert_own" ON flatmate_profiles;
 CREATE POLICY "flatmate_insert_own" ON flatmate_profiles FOR INSERT WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "flatmate_update_own" ON flatmate_profiles;
 CREATE POLICY "flatmate_update_own" ON flatmate_profiles FOR UPDATE USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "flatmate_delete_own" ON flatmate_profiles;
 CREATE POLICY "flatmate_delete_own" ON flatmate_profiles FOR DELETE USING (user_id = auth.uid());
 
 -- Flicks: users manage own sent flicks
+DROP POLICY IF EXISTS "flicks_select" ON flatmate_flicks;
 CREATE POLICY "flicks_select" ON flatmate_flicks FOR SELECT
   USING (from_user_id = auth.uid() OR to_profile_id IN (SELECT id FROM flatmate_profiles WHERE user_id = auth.uid()));
+DROP POLICY IF EXISTS "flicks_insert" ON flatmate_flicks;
 CREATE POLICY "flicks_insert" ON flatmate_flicks FOR INSERT WITH CHECK (from_user_id = auth.uid());
+DROP POLICY IF EXISTS "flicks_update" ON flatmate_flicks;
 CREATE POLICY "flicks_update" ON flatmate_flicks FOR UPDATE USING (from_user_id = auth.uid());
+
+-- Room shares (Student room availability postings)
+CREATE TABLE IF NOT EXISTS room_shares (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  title_en TEXT NOT NULL,
+  title_bn TEXT,
+  description_en TEXT,
+  description_bn TEXT,
+  area TEXT NOT NULL,
+  address TEXT,
+  lat NUMERIC(10,7),
+  lng NUMERIC(10,7),
+  rent_bdt INTEGER NOT NULL,
+  current_roommates INTEGER DEFAULT 1,
+  available_seats INTEGER DEFAULT 1,
+  gender_restriction TEXT CHECK (gender_restriction IN ('male', 'female', 'any')) DEFAULT 'any',
+  university_restriction TEXT,
+  photos TEXT[] DEFAULT '{}',
+  is_available BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE room_shares ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "room_shares_select" ON room_shares;
+CREATE POLICY "room_shares_select" ON room_shares FOR SELECT USING (is_available = true);
+DROP POLICY IF EXISTS "room_shares_insert" ON room_shares;
+CREATE POLICY "room_shares_insert" ON room_shares FOR INSERT WITH CHECK (creator_id = auth.uid());
+DROP POLICY IF EXISTS "room_shares_update_own" ON room_shares;
+CREATE POLICY "room_shares_update_own" ON room_shares FOR UPDATE USING (creator_id = auth.uid());
+DROP POLICY IF EXISTS "room_shares_delete_own" ON room_shares;
+CREATE POLICY "room_shares_delete_own" ON room_shares FOR DELETE USING (creator_id = auth.uid());
+

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { rowToFlatmateProfile } from "@/lib/flatmate-db";
-import { SEED_PROFILES } from "@/lib/seed-profiles";
+import type { FlatmateProfileRow } from "@/lib/flatmate-db";
 import type { FlatmateProfile } from "@/types";
 
 export async function getFlatmateCandidates(excludeProfileId?: string): Promise<FlatmateProfile[]> {
@@ -8,13 +8,14 @@ export async function getFlatmateCandidates(excludeProfileId?: string): Promise<
   const { data, error } = await supabase
     .from("flatmate_profiles")
     .select("*")
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .not("user_id", "is", null); // Exclude dummy/seed profiles — real users only!
 
-  if (error || !data || data.length === 0) {
-    return SEED_PROFILES.filter((p) => p.id !== excludeProfileId);
+  if (error || !data) {
+    return [];
   }
 
-  const profiles = data.map(rowToFlatmateProfile);
+  const profiles = (data as FlatmateProfileRow[]).map(rowToFlatmateProfile);
   if (excludeProfileId) {
     return profiles.filter((p) => p.id !== excludeProfileId);
   }
