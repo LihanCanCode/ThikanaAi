@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
 import { Users, Calculator, Plus, Minus, Utensils, AlertTriangle, ArrowRight, TrendingUp, Zap, Lock } from "lucide-react";
@@ -16,6 +18,28 @@ interface Deposit {
 }
 
 export default function FinancePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+          
+        if (profile?.role === "landlord") {
+          router.push("/listings");
+        }
+      }
+    };
+    checkAccess();
+  }, [router]);
+
   // Rent Splitter State
   const [rent, setRent] = useState(24000);
   const [flatmates, setFlatmates] = useState(3);

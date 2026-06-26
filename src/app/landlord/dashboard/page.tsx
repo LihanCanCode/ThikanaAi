@@ -289,7 +289,7 @@ export default function LandlordDashboard() {
                   </div>
                 ) : (
                   myListings.map((l) => (
-                    <div key={l.id} className="card" style={{ padding: "1rem" }}>
+                    <Link href={`/listings/${l.id}`} key={l.id} className="card" style={{ padding: "1rem", display: "block", textDecoration: "none", color: "inherit", transition: "transform 0.15s" }}>
                       <div style={{ display: "flex", gap: "10px" }}>
                         {l.photos?.[0] && (
                           <img src={l.photos[0]} alt="" style={{ width: 56, height: 56, borderRadius: "var(--radius-md)", objectFit: "cover", flexShrink: 0 }} />
@@ -306,7 +306,7 @@ export default function LandlordDashboard() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))
                 )}
                 <Link href="/listings/new" className="btn btn-outline" style={{ justifyContent: "center", gap: "6px" }}>

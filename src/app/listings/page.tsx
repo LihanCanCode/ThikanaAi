@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, MapPin, X, ChevronDown, Sparkles, Bell, SlidersHorizontal, Map as MapIcon, LayoutGrid, Loader2 } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
 import ListingCard from "@/components/listings/ListingCard";
+import ListingMap from "@/components/listings/ListingMap";
 import { DHAKA_AREAS, UNIVERSITIES, getDistanceKm } from "@/lib/utils";
 import type { Listing, SearchFilters } from "@/types";
 import { Toaster, toast } from "react-hot-toast";
@@ -363,6 +364,26 @@ function StudentListingsContent() {
               <Loader2 size={32} className="animate-spin text-[var(--emerald)] mb-4" />
               <p className="font-medium">Finding the best matches...</p>
             </div>
+          ) : viewMode === "map" ? (
+            <div className="flex-grow flex gap-6 h-[calc(100vh-220px)] bg-white rounded-2xl border border-[var(--foam)] p-2 overflow-hidden shadow-[var(--shadow-sm)]">
+              {/* List alongside map */}
+              <div className="w-[45%] overflow-y-auto custom-scrollbar pr-2 space-y-4">
+                {sortedListings.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center p-6 opacity-80">
+                    <div className="text-4xl mb-3">🔍</div>
+                    <p className="text-[var(--slate)] font-medium mb-3">No properties found</p>
+                    <button onClick={clearFilters} className="bg-[var(--forest)] text-white px-4 py-1.5 rounded-full text-sm font-semibold">Clear Filters</button>
+                  </div>
+                ) : (
+                  sortedListings.map((listing) => (
+                    <ListingCard key={listing.id} listing={listing} distanceKm={getDistance(listing)} />
+                  ))
+                )}
+              </div>
+              <div className="flex-grow bg-[var(--bg-muted)] rounded-xl relative overflow-hidden">
+                <ListingMap listings={sortedListings} selectedUniversityId={selectedUniv} />
+              </div>
+            </div>
           ) : sortedListings.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-[var(--foam)] shadow-sm text-center px-6">
               <div className="text-5xl mb-4">🔍</div>
@@ -372,7 +393,7 @@ function StudentListingsContent() {
                 Clear Filters
               </button>
             </div>
-          ) : viewMode === "grid" ? (
+          ) : (
             <motion.div 
               variants={fadeUpStagger}
               initial="hidden"
@@ -385,31 +406,6 @@ function StudentListingsContent() {
                 </motion.div>
               ))}
             </motion.div>
-          ) : (
-            <div className="flex-grow flex gap-6 h-[calc(100vh-220px)] bg-white rounded-2xl border border-[var(--foam)] p-2 overflow-hidden shadow-[var(--shadow-sm)]">
-              {/* List alongside map */}
-              <div className="w-[45%] overflow-y-auto custom-scrollbar pr-2 space-y-4">
-                {sortedListings.map((listing) => (
-                  <ListingCard key={listing.id} listing={listing} distanceKm={getDistance(listing)} />
-                ))}
-              </div>
-              {/* Map Placeholder */}
-              <div className="flex-grow bg-[var(--bg-muted)] rounded-xl relative overflow-hidden flex items-center justify-center">
-                 <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(42,125,70,0.5) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
-                 <div className="relative z-10 text-center text-[var(--forest)] flex flex-col items-center bg-white/80 p-6 rounded-2xl backdrop-blur-sm border border-white/50">
-                   <MapIcon size={48} className="mb-4 text-[var(--emerald)]" />
-                   <p className="font-bold text-lg mb-1">Interactive Map View</p>
-                   <p className="text-sm text-[var(--slate)]">Integrate Mapbox or Google Maps here.</p>
-                 </div>
-                 
-                 {/* Mock Map Markers for visual flair */}
-                 {sortedListings.slice(0,3).map((l, i) => (
-                   <div key={l.id} className="absolute bg-[var(--emerald)] text-white text-sm font-bold py-1 px-2 rounded-full shadow-lg bangla transform hover:scale-110 cursor-pointer transition-transform border-2 border-white" style={{ top: `${30 + i * 15}%`, left: `${40 + i * 20}%` }}>
-                     ৳{(l.rent_bdt/1000).toFixed(1)}k
-                   </div>
-                 ))}
-              </div>
-            </div>
           )}
         </div>
 

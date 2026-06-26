@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import { getWalkingRoute } from "@/lib/mapbox";
 import { UNIVERSITIES } from "@/lib/utils";
 import type { Listing } from "@/types";
@@ -158,7 +159,19 @@ export default function ListingMap({
     resetRoute();
 
     const univ = UNIVERSITIES.find((u) => u.id === selectedUniversityId);
-    if (!univ) return;
+    if (!univ) {
+      // If no university is selected, just fit bounds to all listings (useful for main map view)
+      if (listings.length > 0) {
+        const bounds = new mapboxgl.LngLatBounds();
+        listings.forEach((l) => {
+          if (l.lat && l.lng) bounds.extend([l.lng, l.lat]);
+        });
+        if (!bounds.isEmpty()) {
+          map.fitBounds(bounds, { padding: 50, maxZoom: 14, duration: 1000 });
+        }
+      }
+      return;
+    }
 
     // University marker — blue pill with short name label
     const el = document.createElement("div");

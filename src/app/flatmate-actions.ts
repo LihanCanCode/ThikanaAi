@@ -30,6 +30,8 @@ export type FlatmateFormData = {
   lifestyle: string[];
   bio: string;
   avatar?: string;
+  vacant_rooms?: number;
+  location?: string;
 };
 
 export async function getFlatmateProfiles(): Promise<FlatmateProfile[]> {
@@ -60,7 +62,9 @@ export async function postFlatmateProfile(formData: FlatmateFormData) {
     gender: formData.gender.toLowerCase(),
     lifestyle: formData.lifestyle,
     bio: formData.bio || "Student looking for flatmates.",
-    avatar: formData.avatar || formData.name.charAt(0).toUpperCase()
+    avatar: formData.avatar || formData.name.charAt(0).toUpperCase(),
+    vacant_rooms: formData.vacant_rooms ?? 1,
+    location: formData.location || ""
   };
 
   const { data, error } = await supabase

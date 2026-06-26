@@ -2,24 +2,51 @@
 
 import { useState, use, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   MapPin, Bed, Bath, Shield, ChevronLeft, MessageCircle,
   Send, Loader2, Sparkles, CheckCircle, Home, Navigation,
   Clock, Ruler, Star, Eye, Calendar, Phone, Building2,
-  ZoomIn, X, ChevronRight, ChevronDown,
+  ZoomIn, X, ChevronRight, ChevronDown, Trash2
 } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
 import ListingMap from "@/components/listings/ListingMap";
 import { createClient } from "@/lib/supabase/client";
 import { formatBDT, timeAgo, UNIVERSITIES, getDistanceKm } from "@/lib/utils";
 import type { Listing } from "@/types";
+import { generateTrustScore } from "@/app/actions/ai-trust-score";
 
 export default function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const [listing, setListing] = useState<Listing | null | undefined>(undefined);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [isScoring, setIsScoring] = useState(false);
+
+  useEffect(() => {
+    if (listing && listing.trust_score === null && !isScoring) {
+      setIsScoring(true);
+      generateTrustScore(listing.id, "listing").then((res) => {
+        if (res.success && res.score) {
+          setListing(prev => prev ? {
+            ...prev,
+            trust_score: res.score?.totalScore ?? 0,
+            trust_score_breakdown: res.score as any
+          } : prev);
+        }
+        setIsScoring(false);
+      });
+    }
+  }, [listing, isScoring]);
 
   useEffect(() => {
     const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUser(data.user);
+    });
+
     supabase
       .from("listings")
       .select("*")
@@ -40,6 +67,31 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
   const [qaAnswer, setQaAnswer] = useState("");
   const [qaLoading, setQaLoading] = useState(false);
   const [showAllBreakdown, setShowAllBreakdown] = useState(false);
+
+  const isOwner = currentUser && listing && currentUser.id === listing.landlord_id;
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("listings")
+        .delete()
+        .eq("id", id);
+      
+      if (error) {
+        alert("Failed to delete listing: " + error.message);
+      } else {
+        router.push("/listings");
+      }
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("An error occurred while deleting the listing.");
+    } finally {
+      setIsDeleting(false);
+      setShowConfirmDelete(false);
+    }
+  };
 
   const defaultUniv = listing
     ? UNIVERSITIES.reduce((closest, u) => {
@@ -578,33 +630,53 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
                 📍 {listing.area}, Dhaka
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <a
-                  href="tel:+8801700000000"
-                  style={{
-                    background: "#22C55E", color: "#fff", textDecoration: "none",
-                    borderRadius: 12, padding: "0.75rem 1rem",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    gap: "8px", fontWeight: 700, fontSize: "0.9rem",
-                    transition: "background 0.15s",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#16A34A")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#22C55E")}
-                >
-                  <Phone size={15} /> Call Landlord
-                </a>
-                <button
-                  style={{
-                    background: "rgba(255,255,255,0.12)", color: "#fff", border: "1.5px solid rgba(255,255,255,0.25)",
-                    borderRadius: 12, padding: "0.75rem 1rem",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    gap: "8px", fontWeight: 600, fontSize: "0.88rem",
-                    cursor: "pointer", transition: "background 0.15s", fontFamily: "inherit",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.12)")}
-                >
-                  <MessageCircle size={15} /> Send Message
-                </button>
+                {isOwner ? (
+                  <button
+                    onClick={() => setShowConfirmDelete(true)}
+                    style={{
+                      background: "#EF4444", color: "#fff", border: "none",
+                      borderRadius: 12, padding: "0.75rem 1rem",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      gap: "8px", fontWeight: 700, fontSize: "0.9rem",
+                      cursor: "pointer", transition: "background 0.15s, transform 0.1s",
+                      fontFamily: "inherit",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "#DC2626")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "#EF4444")}
+                  >
+                    <Trash2 size={15} /> Delete Listing
+                  </button>
+                ) : (
+                  <>
+                    <a
+                      href="tel:+8801700000000"
+                      style={{
+                        background: "#22C55E", color: "#fff", textDecoration: "none",
+                        borderRadius: 12, padding: "0.75rem 1rem",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        gap: "8px", fontWeight: 700, fontSize: "0.9rem",
+                        transition: "background 0.15s",
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#16A34A")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "#22C55E")}
+                    >
+                      <Phone size={15} /> Call Landlord
+                    </a>
+                    <button
+                      style={{
+                        background: "rgba(255,255,255,0.12)", color: "#fff", border: "1.5px solid rgba(255,255,255,0.25)",
+                        borderRadius: 12, padding: "0.75rem 1rem",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        gap: "8px", fontWeight: 600, fontSize: "0.88rem",
+                        cursor: "pointer", transition: "background 0.15s", fontFamily: "inherit",
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.12)")}
+                    >
+                      <MessageCircle size={15} /> Send Message
+                    </button>
+                  </>
+                )}
               </div>
               <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: "10px" }}>
                 🛡️ Zero broker fees · Direct contact
@@ -641,9 +713,33 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
               background: "#fff", borderRadius: 16, padding: "1.25rem",
               boxShadow: "var(--shadow-sm)", border: "1px solid var(--border)",
             }}>
-              <h3 style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--forest)", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                <Shield size={14} style={{ color: trustColorVal }} /> AI Trust Score
-              </h3>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <h3 style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--forest)", display: "flex", alignItems: "center", gap: "6px", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
+                  <Shield size={14} style={{ color: trustColorVal }} /> AI Trust Score
+                </h3>
+                {isOwner && (
+                  <button 
+                    onClick={() => {
+                      setIsScoring(true);
+                      generateTrustScore(listing.id, "listing").then((res) => {
+                        if (res.success && res.score) {
+                          setListing(prev => prev ? {
+                            ...prev,
+                            trust_score: res.score?.totalScore ?? 0,
+                            trust_score_breakdown: res.score as any
+                          } : prev);
+                        }
+                        setIsScoring(false);
+                      });
+                    }}
+                    disabled={isScoring}
+                    style={{ background: "none", border: "none", color: "var(--emerald)", fontSize: "0.75rem", fontWeight: 600, cursor: isScoring ? "not-allowed" : "pointer", opacity: isScoring ? 0.5 : 1, display: "flex", alignItems: "center", gap: "4px" }}
+                  >
+                    {isScoring ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                    Recalculate
+                  </button>
+                )}
+              </div>
 
               {/* Circular gauge */}
               <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "16px" }}>
@@ -754,6 +850,91 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showConfirmDelete && (
+        <div
+          onClick={() => setShowConfirmDelete(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 10000,
+            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 20,
+              padding: "2rem",
+              maxWidth: 400,
+              width: "100%",
+              boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+              border: "1px solid var(--border)",
+              textAlign: "center",
+            }}
+          >
+            <div style={{
+              width: 56, height: 56, borderRadius: "50%",
+              background: "#FEE2E2",
+              color: "#EF4444",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 1rem",
+              fontSize: "1.5rem",
+            }}>
+              ⚠️
+            </div>
+            <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--forest)", marginBottom: "0.5rem" }}>
+              Delete Listing?
+            </h3>
+            <p style={{ color: "var(--stone)", fontSize: "0.88rem", lineHeight: 1.5, marginBottom: "1.5rem" }}>
+              Are you sure you want to delete this listing? This action is permanent and cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={() => setShowConfirmDelete(false)}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  background: "var(--mist)", color: "var(--slate)", border: "1px solid var(--border)",
+                  borderRadius: 12, padding: "0.75rem",
+                  fontWeight: 600, fontSize: "0.88rem",
+                  cursor: "pointer", transition: "background 0.15s",
+                  fontFamily: "inherit",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--border)")}
+                onMouseLeave={e => (e.currentTarget.style.background = "var(--mist)")}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  background: "#EF4444", color: "#fff", border: "none",
+                  borderRadius: 12, padding: "0.75rem",
+                  fontWeight: 700, fontSize: "0.88rem",
+                  cursor: "pointer", transition: "background 0.15s",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                  fontFamily: "inherit",
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = "#DC2626")}
+                onMouseLeave={e => (e.currentTarget.style.background = "#EF4444")}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }

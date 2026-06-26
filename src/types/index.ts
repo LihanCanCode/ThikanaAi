@@ -19,11 +19,18 @@ export type ListingType = "student" | "family" | "professional";
 export type GenderPref = "male" | "female" | "any";
 
 export interface TrustScoreBreakdown {
+  /** Price Anomaly — max 30 pts */
   price:       { score: number; note: string };
+  /** Photo Evidence — max 20 pts (5 pts per photo, capped at 4) */
   photos:      { score: number; note: string };
+  /** Description Quality — max 20 pts */
   description: { score: number; note: string };
+  /** NLP Duplicate Check — max 15 pts */
   duplicate:   { score: number; note: string };
-  total:       number;
+  /** Image Hash (pHash) Check — max 15 pts */
+  photo_hash:  { score: number; note: string };
+  /** Total score out of 100 */
+  totalScore:  number;
 }
 
 export interface Listing {

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { User } from "@supabase/supabase-js";
-import { Home, Search, PlusCircle, LayoutDashboard, Menu, X, Users, LogOut, ChevronDown, Bell, CheckCircle, XCircle, Loader2, GraduationCap, Phone, Wrench } from "lucide-react";
+import { Home, Search, PlusCircle, LayoutDashboard, Menu, X, Users, LogOut, ChevronDown, Bell, CheckCircle, XCircle, Loader2, GraduationCap, Phone, Wrench, UserCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { logout } from "@/app/auth/actions";
 import { getPendingFlicks } from "@/app/student/flatmate-actions";
@@ -552,10 +552,18 @@ export default function Navbar() {
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="desktop-nav">
           <NavLink href="/listings" icon={<Search size={15} />}>Student Rent</NavLink>
           <NavLink href="/listings/family" icon={<Search size={15} />}>Family Rent</NavLink>
-          <NavLink href="/flatmates" icon={<Users size={15} />}>Find Flatmates</NavLink>
-          <NavLink href="/listings/new" icon={<PlusCircle size={15} />}>List Property</NavLink>
-          <NavLink href="/landlord/dashboard" icon={<LayoutDashboard size={15} />}>Dashboard</NavLink>
-          <NavLink href="/student/finance" icon={<span style={{ fontSize: "15px" }}>💰</span>}>Finance</NavLink>
+          {(!role || role === "student") && (
+            <NavLink href="/flatmates" icon={<Users size={15} />}>Find Flatmates</NavLink>
+          )}
+          {role !== "student" && (
+            <>
+              <NavLink href="/listings/new" icon={<PlusCircle size={15} />}>List Property</NavLink>
+              <NavLink href="/landlord/dashboard" icon={<LayoutDashboard size={15} />}>Dashboard</NavLink>
+            </>
+          )}
+          {(!role || role === "student") && (
+            <NavLink href="/student/finance" icon={<span style={{ fontSize: "15px" }}>💰</span>}>Finance</NavLink>
+          )}
           
           {/* Tools Menu */}
           <div ref={toolsMenuRef} style={{ position: "relative" }}>
@@ -627,13 +635,22 @@ export default function Navbar() {
                         {role}
                       </span>
                     </div>
-                    <Link href={dashboardHref} onClick={() => setUserMenuOpen(false)}
+                    <Link href="/profile" onClick={() => setUserMenuOpen(false)}
                       style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.65rem 0.85rem", borderRadius: "var(--radius-md)", color: "var(--text-primary)", textDecoration: "none", fontSize: "0.875rem", fontWeight: 500 }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-subtle)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
-                      <LayoutDashboard size={16} /> Dashboard
+                      <UserCircle size={16} /> My Profile
                     </Link>
+                    {role !== "student" && (
+                      <Link href={dashboardHref} onClick={() => setUserMenuOpen(false)}
+                        style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.65rem 0.85rem", borderRadius: "var(--radius-md)", color: "var(--text-primary)", textDecoration: "none", fontSize: "0.875rem", fontWeight: 500 }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-subtle)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <LayoutDashboard size={16} /> Dashboard
+                      </Link>
+                    )}
                     <form action={logout}>
                       <button type="submit" style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "0.65rem 0.85rem", borderRadius: "var(--radius-md)", border: "none", background: "transparent", color: "#DC2626", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = "#FEE2E2")}
@@ -665,10 +682,18 @@ export default function Navbar() {
         <div style={{ background: "var(--bg-surface)", borderTop: "1px solid var(--border)", padding: "1rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           <MobileNavLink href="/listings" onClick={() => setOpen(false)}>🎓 Student Rent</MobileNavLink>
           <MobileNavLink href="/listings/family" onClick={() => setOpen(false)}>🏠 Family Rent</MobileNavLink>
-          <MobileNavLink href="/flatmates" onClick={() => setOpen(false)}>🤝 Find Flatmates</MobileNavLink>
-          <MobileNavLink href="/listings/new" onClick={() => setOpen(false)}>➕ List Property</MobileNavLink>
-          <MobileNavLink href="/landlord/dashboard" onClick={() => setOpen(false)}>📊 Dashboard</MobileNavLink>
-          <MobileNavLink href="/student/finance" onClick={() => setOpen(false)}>💰 Finance Tools</MobileNavLink>
+          {(!role || role === "student") && (
+            <MobileNavLink href="/flatmates" onClick={() => setOpen(false)}>🤝 Find Flatmates</MobileNavLink>
+          )}
+          {role !== "student" && (
+            <>
+              <MobileNavLink href="/listings/new" onClick={() => setOpen(false)}>➕ List Property</MobileNavLink>
+              <MobileNavLink href="/landlord/dashboard" onClick={() => setOpen(false)}>📊 Dashboard</MobileNavLink>
+            </>
+          )}
+          {(!role || role === "student") && (
+            <MobileNavLink href="/student/finance" onClick={() => setOpen(false)}>💰 Finance Tools</MobileNavLink>
+          )}
           <MobileNavLink href="/listings/estimate" onClick={() => setOpen(false)}>🧮 Rent Estimator</MobileNavLink>
           <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "0.5rem 0" }} />
 
@@ -683,8 +708,11 @@ export default function Navbar() {
                   <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{email}</div>
                 </div>
               </div>
+              <MobileNavLink href="/profile" onClick={() => setOpen(false)}>👤 My Profile</MobileNavLink>
               <MobileNavLink href="/alerts" onClick={() => setOpen(false)}>🔔 My Alerts</MobileNavLink>
-              <MobileNavLink href={dashboardHref} onClick={() => setOpen(false)}>📊 My Dashboard</MobileNavLink>
+              {role !== "student" && (
+                <MobileNavLink href={dashboardHref} onClick={() => setOpen(false)}>📊 My Dashboard</MobileNavLink>
+              )}
               <form action={logout}>
                 <button type="submit" className="btn btn-outline" style={{ width: "100%", justifyContent: "center", color: "#DC2626", borderColor: "#FECACA" }}>Sign Out</button>
               </form>

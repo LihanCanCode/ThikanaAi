@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/shared/Navbar";
 import { DHAKA_AREAS, UNIVERSITIES } from "@/lib/utils";
 import { fadeUpStagger, fadeUp } from "@/lib/animations";
-import { Users, Filter, Check, MapPin, Loader2 } from "lucide-react";
+import { Users, Filter, Check, MapPin, Loader2, DoorOpen } from "lucide-react";
 import { getFlatmateProfiles, postFlatmateProfile, deleteFlatmateProfile } from "@/app/flatmate-actions";
 import { sendConnectionRequest } from "@/app/actions/chat-actions";
 import { toast } from "react-hot-toast";
@@ -34,7 +34,9 @@ export default function FlatmatesPage() {
     area_pref: DHAKA_AREAS[0],
     lifestyle: [] as string[],
     bio: "",
-    avatar: ""
+    avatar: "",
+    vacant_rooms: 1,
+    location: ""
   });
 
   const [filterUni, setFilterUni] = useState("All");
@@ -59,7 +61,9 @@ export default function FlatmatesPage() {
             area_pref: p.preferred_areas?.[0] || DHAKA_AREAS[0],
             lifestyle: p.profile_data?.lifestyle || [],
             avatar: p.profile_data?.avatar || p.name.charAt(0).toUpperCase(),
-            bio: p.profile_data?.bio || ""
+            bio: p.profile_data?.bio || "",
+            vacant_rooms: p.profile_data?.vacant_rooms ?? 1,
+            location: p.profile_data?.location || p.preferred_areas?.[0] || ""
           }));
           setSeekers(mapped);
         } else {
@@ -118,7 +122,9 @@ export default function FlatmatesPage() {
           area_pref: res.profile.preferred_areas?.[0] || formData.area_pref,
           lifestyle: res.profile.profile_data?.lifestyle || [],
           avatar: res.profile.profile_data?.avatar || formData.name.charAt(0).toUpperCase(),
-          bio: res.profile.profile_data?.bio || ""
+          bio: res.profile.profile_data?.bio || "",
+          vacant_rooms: res.profile.profile_data?.vacant_rooms ?? formData.vacant_rooms,
+          location: res.profile.profile_data?.location || formData.location
         };
         
         // Prepend to top of list instantly
@@ -244,6 +250,17 @@ export default function FlatmatesPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <label className="text-xs font-semibold text-[var(--slate)] mb-1 block uppercase tracking-wider">Vacant Rooms</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={formData.vacant_rooms}
+                      onChange={e => setFormData({...formData, vacant_rooms: Math.max(1, Number(e.target.value))})}
+                      className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none text-sm font-bold text-[var(--forest)] transition-colors"
+                    />
+                  </div>
+                  <div>
                     <label className="text-xs font-semibold text-[var(--slate)] mb-1 block uppercase tracking-wider">Gender</label>
                     <select value={formData.gender} onChange={e => setFormData({...formData, gender: e.target.value})} className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none text-sm font-bold text-[var(--forest)] transition-colors">
                       <option>Any</option><option>Male</option><option>Female</option>
@@ -255,6 +272,17 @@ export default function FlatmatesPage() {
                       {DHAKA_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-[var(--slate)] mb-1 block uppercase tracking-wider">Location / Full Address</label>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={e => setFormData({...formData, location: e.target.value})}
+                    placeholder="e.g. Road 7, Mirpur-2, Dhaka"
+                    className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none text-sm font-medium text-[var(--forest)] transition-colors"
+                  />
                 </div>
 
                 <div>
@@ -348,11 +376,18 @@ export default function FlatmatesPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between text-sm mb-3">
+                      <div className="flex items-center justify-between text-sm mb-2">
                         <div className="font-bold text-[var(--emerald)] bangla">৳{s.budget.toLocaleString()}</div>
-                        <div className="flex items-center gap-1 text-[var(--slate)] font-medium text-xs">
-                          <MapPin size={12} /> {s.area_pref}
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1 text-[var(--forest)] font-semibold text-xs bg-[var(--mint)] px-2 py-0.5 rounded-full">
+                            <DoorOpen size={11} />
+                            <span>{s.vacant_rooms} room{s.vacant_rooms !== 1 ? 's' : ''} free</span>
+                          </div>
                         </div>
+                      </div>
+                      <div className="flex items-center gap-1 text-[var(--slate)] text-xs mb-3 font-medium">
+                        <MapPin size={12} className="text-[var(--emerald)] flex-shrink-0" />
+                        <span className="truncate">{s.location || s.area_pref}</span>
                       </div>
 
                       <div className="flex flex-wrap gap-1.5 mb-3">

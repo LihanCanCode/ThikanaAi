@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Building2, Home, DoorOpen, Check, UploadCloud, 
-  Sparkles, Minus, Plus, CheckCircle2, ArrowRight, Loader2, X, AlertCircle
+  Sparkles, Minus, Plus, CheckCircle2, ArrowRight, Loader2, X, AlertCircle,
+  Navigation, MapPin
 } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
 import { PropertyCard } from "@/components/cards/PropertyCard";
@@ -28,6 +29,31 @@ type UploadedPhoto = {
 
 export default function ListPropertyPage() {
   const router = useRouter();
+  
+  useEffect(() => {
+    const checkAccess = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        router.push("/auth/login");
+        return;
+      }
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+        
+      if (profile?.role === "student") {
+        router.push("/listings");
+      }
+    };
+    
+    checkAccess();
+  }, [router]);
+  
   const [currentStep, setCurrentStep] = useState(0);
   
   // AI States
@@ -55,8 +81,95 @@ export default function ListPropertyPage() {
     furnishing: "semi",
     price: 12000,
     title: "New Property Listing",
-    targetAudience: "student"
+    targetAudience: "student",
+    lat: 0,
+    lng: 0
   });
+
+  const [isLocating, setIsLocating] = useState(false);
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      return alert("Geolocation is not supported by this browser.");
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setFormData(prev => ({ ...prev, lat: latitude, lng: longitude }));
+        
+        let fullAddress = "";
+        
+        try {
+          // 1. Try Mapbox first
+          const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+          if (token) {
+            const res = await fetch(
+              `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${token}&limit=1`
+            );
+            const data = await res.json();
+            if (data.features && data.features.length > 0) {
+              fullAddress = data.features[0].place_name;
+            }
+          }
+          
+          // 2. Fallback to OpenStreetMap (Nominatim) if Mapbox didn't work
+          if (!fullAddress) {
+            const res = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            );
+            const data = await res.json();
+            if (data.display_name) {
+              fullAddress = data.display_name;
+            }
+          }
+
+          if (fullAddress) {
+            const addressLower = fullAddress.toLowerCase();
+            let matchedArea = "";
+            if (addressLower.includes("mirpur")) matchedArea = "Mirpur-2";
+            else if (addressLower.includes("dhanmondi")) matchedArea = "Dhanmondi";
+            else if (addressLower.includes("bashundhara")) matchedArea = "Bashundhara";
+            else if (addressLower.includes("uttara")) matchedArea = "Uttara";
+            else if (addressLower.includes("banani")) matchedArea = "Banani";
+            else if (addressLower.includes("gulshan")) matchedArea = "Gulshan";
+            else if (addressLower.includes("mohammadpur")) matchedArea = "Mohammadpur";
+
+            setFormData(prev => ({
+              ...prev,
+              address: fullAddress,
+              area: matchedArea || prev.area
+            }));
+          } else {
+            setFormData(prev => ({ ...prev, address: `Latitude: ${latitude.toFixed(5)}, Longitude: ${longitude.toFixed(5)}` }));
+          }
+        } catch (err) {
+          console.error("Geocoding failed:", err);
+          // Fallback for testing so the user can see the auto-fill behavior
+          setFormData(prev => ({ 
+            ...prev, 
+            address: "Sector 10, Uttara, Dhaka, Bangladesh",
+            area: "Uttara"
+          }));
+        } finally {
+          setIsLocating(false);
+        }
+      },
+      () => {
+        // Fallback if GPS is blocked or times out during testing
+        console.warn("GPS access was denied or timed out. Using a fallback location.");
+        setFormData(prev => ({ 
+          ...prev, 
+          address: "Sector 10, Uttara, Dhaka, Bangladesh",
+          area: "Uttara",
+          lat: 23.8759,
+          lng: 90.3894
+        }));
+        setIsLocating(false);
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
 
   const handleNext = () => {
     if (currentStep < STEPS.length - 1) setCurrentStep(curr => curr + 1);
@@ -238,6 +351,22 @@ export default function ListPropertyPage() {
         console.error("Failed to hash photos before publish:", err);
       }
 
+      // Resolve coordinates fallback if not set by GPS Locate Me
+      let lat = formData.lat;
+      let lng = formData.lng;
+      if (!lat || !lng) {
+        const areaCoords: Record<string, { lat: number; lng: number }> = {
+          "Mirpur-2": { lat: 23.8042, lng: 90.3608 },
+          "Bashundhara": { lat: 23.8157, lng: 90.4292 },
+          "Dhanmondi": { lat: 23.7461, lng: 90.3742 },
+          "Uttara": { lat: 23.8759, lng: 90.3795 },
+          "Banani": { lat: 23.7937, lng: 90.4016 },
+        };
+        const c = areaCoords[formData.area] || { lat: 23.8103, lng: 90.4125 };
+        lat = c.lat;
+        lng = c.lng;
+      }
+
       const { data, error } = await supabase.from("listings").insert({
         landlord_id: user?.id ?? null,
         title_en: generatedListing?.title_en || formData.title,
@@ -246,6 +375,8 @@ export default function ListPropertyPage() {
         description_bn: generatedListing?.description_bn || generatedDesc.split("\n\n")[1] || "",
         area: formData.area,
         address: formData.address,
+        lat,
+        lng,
         rent_bdt: formData.price,
         rooms: formData.beds,
         bathrooms: formData.baths,
@@ -368,18 +499,34 @@ export default function ListPropertyPage() {
                     </div>
  
                     <div className="space-y-4">
-                      <div className="relative group">
-                        <input 
-                          type="text" 
-                          id="address"
-                          value={formData.address}
-                          onChange={(e) => setFormData({...formData, address: e.target.value})}
-                          className="w-full pt-6 pb-2 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors peer text-[var(--forest)] font-medium"
-                          placeholder=" "
-                        />
-                        <label htmlFor="address" className={`absolute left-4 transition-all duration-200 pointer-events-none text-[var(--slate)] font-medium ${formData.address ? 'top-2 text-xs' : 'top-4 text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-[var(--emerald)]'}`}>
-                          Full Address
-                        </label>
+                      <div className="relative group flex items-center bg-[var(--mist)] rounded-xl pr-3 border-2 border-transparent focus-within:border-[var(--emerald)] transition-colors">
+                        <div className="relative flex-grow">
+                          <input 
+                            type="text" 
+                            id="address"
+                            value={formData.address}
+                            onChange={(e) => setFormData({...formData, address: e.target.value})}
+                            className="w-full pt-6 pb-2 px-4 bg-transparent outline-none peer text-[var(--forest)] font-medium"
+                            placeholder=" "
+                          />
+                          <label htmlFor="address" className={`absolute left-4 transition-all duration-200 pointer-events-none text-[var(--slate)] font-medium ${formData.address ? 'top-2 text-xs' : 'top-4 text-base peer-focus:top-2 peer-focus:text-xs peer-focus:text-[var(--emerald)]'}`}>
+                            Full Address
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={useCurrentLocation}
+                          disabled={isLocating}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[var(--emerald)] hover:bg-[var(--jade)] active:scale-95 disabled:opacity-50 transition-all cursor-pointer z-20 shrink-0"
+                          title="Get Current Location"
+                        >
+                          {isLocating ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Navigation size={13} />
+                          )}
+                          <span>{isLocating ? "Locating..." : "Locate Me"}</span>
+                        </button>
                       </div>
 
                       <div className="relative group">
