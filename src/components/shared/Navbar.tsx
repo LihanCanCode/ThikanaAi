@@ -590,23 +590,6 @@ export default function Navbar() {
 
           {user ? (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              {/* Alerts Bell */}
-              <Link href="/alerts" aria-label="Smart Match Alerts"
-                style={{
-                  position: "relative",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 40, height: 40, borderRadius: "50%",
-                  border: "1px solid var(--border)",
-                  background: "var(--bg-surface)",
-                  cursor: "pointer", color: "var(--text-secondary)", transition: "all 0.15s ease"
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-subtle)"; e.currentTarget.style.color = "var(--primary)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-surface)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
-              >
-                <Bell size={18} />
-                <div style={{ position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: "50%", background: "#ef4444", border: "2px solid var(--bg-surface)" }} />
-              </Link>
-
               {/* 🔔 Notification Bell — only for students with a profile */}
               {(role === "student" || !role) && <NotificationBell userId={user.id} />}
               

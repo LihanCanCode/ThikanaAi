@@ -6,9 +6,11 @@ import Navbar from "@/components/shared/Navbar";
 import { DHAKA_AREAS, UNIVERSITIES } from "@/lib/utils";
 import { fadeUpStagger, fadeUp } from "@/lib/animations";
 import { Users, Filter, Check, MapPin, Loader2 } from "lucide-react";
-import { getFlatmateProfiles, postFlatmateProfile } from "@/app/flatmate-actions";
+import { getFlatmateProfiles, postFlatmateProfile, deleteFlatmateProfile } from "@/app/flatmate-actions";
 import { sendConnectionRequest } from "@/app/actions/chat-actions";
 import { toast } from "react-hot-toast";
+import { createClient } from "@/lib/supabase/client";
+import { Trash2 } from "lucide-react";
 
 // Only real data is used now
 
@@ -21,6 +23,8 @@ export default function FlatmatesPage() {
   const [isPosting, setIsPosting] = useState(false);
   const [connectingTo, setConnectingTo] = useState<string | null>(null);
   const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
+  const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -29,7 +33,8 @@ export default function FlatmatesPage() {
     gender: "Any",
     area_pref: DHAKA_AREAS[0],
     lifestyle: [] as string[],
-    bio: ""
+    bio: "",
+    avatar: ""
   });
 
   const [filterUni, setFilterUni] = useState("All");
@@ -37,12 +42,16 @@ export default function FlatmatesPage() {
 
   // Load from DB
   useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setMyUserId(data?.user?.id || null));
+
     async function loadData() {
       try {
         const dbProfiles = await getFlatmateProfiles();
         if (dbProfiles && dbProfiles.length > 0) {
           const mapped = dbProfiles.map(p => ({
             id: p.id,
+            user_id: p.user_id,
             name: p.name,
             university: p.university,
             budget: p.budget_max,
@@ -101,6 +110,7 @@ export default function FlatmatesPage() {
       if (res.success && res.profile) {
         const newSeeker = {
           id: res.profile.id,
+          user_id: myUserId || res.profile.user_id,
           name: res.profile.name,
           university: res.profile.university,
           budget: res.profile.budget_max,
@@ -120,6 +130,24 @@ export default function FlatmatesPage() {
       console.error("Submit error", error);
     } finally {
       setIsPosting(false);
+    }
+  };
+
+  const handleDeleteProfile = async (profileId: string) => {
+    if (!confirm("Are you sure you want to delete your flatmate profile?")) return;
+    setDeletingId(profileId);
+    try {
+      const res = await deleteFlatmateProfile(profileId);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Profile deleted successfully!");
+        setSeekers(prev => prev.filter(s => s.id !== profileId));
+      }
+    } catch (e) {
+      toast.error("Failed to delete profile.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -167,6 +195,35 @@ export default function FlatmatesPage() {
               </h2>
               
               <div className="space-y-5">
+                <div className="flex flex-col items-center gap-2 mb-2">
+                  <label className="text-xs font-semibold text-[var(--slate)] uppercase tracking-wider">Profile Picture</label>
+                  <label className="relative w-20 h-20 rounded-full bg-[var(--mist)] border-2 border-dashed border-[var(--border-strong)] flex items-center justify-center cursor-pointer overflow-hidden hover:border-[var(--emerald)] group transition-all">
+                    {formData.avatar ? (
+                      <img src={formData.avatar} alt="Avatar Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-center flex flex-col items-center justify-center">
+                        <Users size={20} className="text-[var(--slate)] group-hover:scale-110 transition-transform" />
+                        <span className="text-[9px] text-[var(--stone)] mt-0.5 font-semibold">Upload</span>
+                      </div>
+                    )}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setFormData(prev => ({ ...prev, avatar: reader.result as string }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+
                 <div>
                   <label className="text-xs font-semibold text-[var(--slate)] mb-1 block uppercase tracking-wider">Your Name</label>
                   <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Shakil" className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none text-sm font-bold text-[var(--forest)] transition-colors" />
@@ -263,8 +320,12 @@ export default function FlatmatesPage() {
                       
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-full bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center font-bold text-lg">
-                            {s.avatar}
+                          <div className="w-12 h-12 rounded-full bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center font-bold text-lg overflow-hidden flex-shrink-0">
+                            {s.avatar && (s.avatar.startsWith("data:image") || s.avatar.startsWith("http")) ? (
+                              <img src={s.avatar} alt={s.name} className="w-full h-full object-cover" />
+                            ) : (
+                              s.avatar
+                            )}
                           </div>
                           <div>
                             <h3 className="font-bold text-[var(--forest)] text-base">{s.name}</h3>
@@ -304,17 +365,29 @@ export default function FlatmatesPage() {
                         "{s.bio}"
                       </p>
 
-                      <button 
-                        type="button" 
-                        onClick={() => handleConnect(s.id)} 
-                        disabled={connectedIds.has(s.id) || connectingTo === s.id}
-                        className={`w-full py-2.5 rounded-lg font-bold text-sm transition-colors mt-auto flex items-center justify-center gap-2
-                          ${connectedIds.has(s.id) ? 'bg-[var(--primary-light)] text-[var(--primary)] cursor-not-allowed' : 
-                            'bg-[var(--mist)] hover:bg-[var(--primary-light)] text-[var(--forest)]'}`}
-                      >
-                        {connectingTo === s.id ? <Loader2 size={16} className="animate-spin" /> : null}
-                        {connectedIds.has(s.id) ? "Request Sent" : "Connect"}
-                      </button>
+                      {s.user_id === myUserId ? (
+                        <button 
+                          type="button" 
+                          onClick={() => handleDeleteProfile(s.id)} 
+                          disabled={deletingId === s.id}
+                          className="w-full py-2.5 rounded-lg font-bold text-sm bg-red-50 hover:bg-red-100 text-red-600 transition-colors mt-auto flex items-center justify-center gap-2 border border-red-200"
+                        >
+                          {deletingId === s.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                          Delete My Profile
+                        </button>
+                      ) : (
+                        <button 
+                          type="button" 
+                          onClick={() => handleConnect(s.id)} 
+                          disabled={connectedIds.has(s.id) || connectingTo === s.id}
+                          className={`w-full py-2.5 rounded-lg font-bold text-sm transition-colors mt-auto flex items-center justify-center gap-2
+                            ${connectedIds.has(s.id) ? 'bg-[var(--primary-light)] text-[var(--primary)] cursor-not-allowed' : 
+                              'bg-[var(--mist)] hover:bg-[var(--primary-light)] text-[var(--forest)]'}`}
+                        >
+                          {connectingTo === s.id ? <Loader2 size={16} className="animate-spin" /> : null}
+                          {connectedIds.has(s.id) ? "Request Sent" : "Connect"}
+                        </button>
+                      )}
                     </motion.div>
                   ))}
                 </AnimatePresence>

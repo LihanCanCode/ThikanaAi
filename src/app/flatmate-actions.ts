@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 export type FlatmateProfile = {
   id: string;
+  user_id?: string;
   name: string;
   university: string;
   budget_min: number;
@@ -28,6 +29,7 @@ export type FlatmateFormData = {
   area_pref: string;
   lifestyle: string[];
   bio: string;
+  avatar?: string;
 };
 
 export async function getFlatmateProfiles(): Promise<FlatmateProfile[]> {
@@ -58,7 +60,7 @@ export async function postFlatmateProfile(formData: FlatmateFormData) {
     gender: formData.gender.toLowerCase(),
     lifestyle: formData.lifestyle,
     bio: formData.bio || "Student looking for flatmates.",
-    avatar: formData.name.charAt(0).toUpperCase()
+    avatar: formData.avatar || formData.name.charAt(0).toUpperCase()
   };
 
   const { data, error } = await supabase
@@ -82,4 +84,23 @@ export async function postFlatmateProfile(formData: FlatmateFormData) {
 
   revalidatePath("/flatmates");
   return { success: true, profile: data as FlatmateProfile };
+}
+
+export async function deleteFlatmateProfile(profileId: string) {
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData?.user?.id;
+
+  if (!userId) return { error: "Not logged in" };
+
+  const { error } = await supabase
+    .from("flatmate_profiles")
+    .delete()
+    .eq("id", profileId)
+    .eq("user_id", userId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/flatmates");
+  return { success: true };
 }

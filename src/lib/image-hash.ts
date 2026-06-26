@@ -6,13 +6,18 @@ import sharp from "sharp";
  */
 export async function computeAHash(url: string): Promise<string> {
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.statusText}`);
+    let buffer: Buffer;
+    if (url.startsWith("data:image")) {
+      const base64Data = url.replace(/^data:image\/\w+;base64,/, "");
+      buffer = Buffer.from(base64Data, "base64");
+    } else {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
     }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
     // Resize to 8x8, convert to grayscale, and extract raw pixel data
     const { data } = await sharp(buffer)

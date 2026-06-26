@@ -127,7 +127,13 @@ export default function ChatPage() {
                       ${isActive ? 'bg-[var(--primary-xlight)]' : 'hover:bg-[var(--bg-subtle)]'}`}
                   >
                     <div className="w-12 h-12 rounded-full bg-[var(--primary-light)] text-[var(--primary)] font-bold flex items-center justify-center overflow-hidden flex-shrink-0">
-                      {other?.avatar_url ? <img src={other.avatar_url} className="w-full h-full object-cover" alt="" /> : other?.fallback_avatar}
+                      {other?.avatar_url ? (
+                        <img src={other.avatar_url} className="w-full h-full object-cover" alt="" />
+                      ) : other?.fallback_avatar && (other.fallback_avatar.startsWith("data:image") || other.fallback_avatar.startsWith("http")) ? (
+                        <img src={other.fallback_avatar} className="w-full h-full object-cover" alt="" />
+                      ) : (
+                        other?.fallback_avatar
+                      )}
                     </div>
                     <div className="flex-1 overflow-hidden">
                       <div className="font-bold text-sm text-[var(--text-primary)] truncate">{other?.full_name || "Unknown User"}</div>
@@ -153,7 +159,13 @@ export default function ChatPage() {
               <div className="p-4 border-b border-[var(--border)] flex justify-between items-center bg-[var(--bg-subtle)]">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-[var(--primary-light)] text-[var(--primary)] font-bold flex items-center justify-center overflow-hidden">
-                    {activeThread.other_user?.avatar_url ? <img src={activeThread.other_user.avatar_url} className="w-full h-full object-cover" alt="" /> : activeThread.other_user?.fallback_avatar}
+                    {activeThread.other_user?.avatar_url ? (
+                      <img src={activeThread.other_user.avatar_url} className="w-full h-full object-cover" alt="" />
+                    ) : activeThread.other_user?.fallback_avatar && (activeThread.other_user.fallback_avatar.startsWith("data:image") || activeThread.other_user.fallback_avatar.startsWith("http")) ? (
+                      <img src={activeThread.other_user.fallback_avatar} className="w-full h-full object-cover" alt="" />
+                    ) : (
+                      activeThread.other_user?.fallback_avatar
+                    )}
                   </div>
                   <div>
                     <h3 className="font-bold text-[var(--text-primary)]">{activeThread.other_user?.full_name}</h3>

@@ -220,10 +220,20 @@ export default function ListingMap({
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {!token ? (
-        <div style={{ width: "100%", height: "100%", borderRadius: "var(--radius-lg)", background: "var(--bg-muted)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", textAlign: "center" }}>
-          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🗺️</div>
-          <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "0.5rem" }}>Map Unavailable</h3>
-          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Please set the <code>NEXT_PUBLIC_MAPBOX_TOKEN</code> in your .env file to enable the interactive map.</p>
+        <div style={{
+          width: "100%", height: "100%",
+          background: "linear-gradient(135deg, #0F2D1F 0%, #166534 60%, #22C55E 100%)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          padding: "2rem", textAlign: "center", position: "relative", overflow: "hidden",
+        }}>
+          {/* Decorative circles */}
+          <div style={{ position: "absolute", top: -60, right: -60, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
+          <div style={{ position: "absolute", bottom: -40, left: -40, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
+          <div style={{ fontSize: "3.5rem", marginBottom: "1rem", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.3))" }}>🗺️</div>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#fff", marginBottom: "0.4rem" }}>Map Not Configured</h3>
+          <p style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.65)", maxWidth: 280, lineHeight: 1.6 }}>
+            Add your <code style={{ background: "rgba(255,255,255,0.15)", padding: "2px 6px", borderRadius: 4, fontSize: "0.75rem" }}>NEXT_PUBLIC_MAPBOX_TOKEN</code> to your <code style={{ background: "rgba(255,255,255,0.15)", padding: "2px 6px", borderRadius: 4, fontSize: "0.75rem" }}>.env</code> file to enable the interactive map with walking routes.
+          </p>
         </div>
       ) : (
         <div ref={mapContainerRef} style={{ width: "100%", height: "100%", borderRadius: "var(--radius-lg)" }} />

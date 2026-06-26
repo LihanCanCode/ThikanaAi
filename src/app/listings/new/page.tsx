@@ -54,7 +54,8 @@ export default function ListPropertyPage() {
     floor: "4",
     furnishing: "semi",
     price: 12000,
-    title: "New Property Listing"
+    title: "New Property Listing",
+    targetAudience: "student"
   });
 
   const handleNext = () => {
@@ -193,14 +194,41 @@ export default function ListPropertyPage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
 
-      const defaultPhotos = ["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=800&auto=format&fit=crop"];
+      const photoUrls: string[] = [];
+      if (uploadedPhotos.length > 0) {
+        for (const p of uploadedPhotos) {
+          if (p.file) {
+            const ext = p.file.name.split(".").pop();
+            const path = `listings/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+            const { error: uploadErr } = await supabase.storage
+              .from("listing-photos")
+              .upload(path, p.file, { cacheControl: "3600", upsert: false });
+            
+            if (uploadErr) {
+              throw new Error(`Photo upload failed: ${uploadErr.message}`);
+            }
+
+            const { data: pub } = supabase.storage
+              .from("listing-photos")
+              .getPublicUrl(path);
+
+            if (pub?.publicUrl) {
+              photoUrls.push(pub.publicUrl);
+            }
+          }
+        }
+      }
+
+      const photosToSave = photoUrls.length > 0 
+        ? photoUrls
+        : ["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=800&auto=format&fit=crop"];
       
       let photoHashes: string[] = [];
       try {
         const hashRes = await fetch("/api/utils/hash-photos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ urls: defaultPhotos })
+          body: JSON.stringify({ urls: photosToSave })
         });
         if (hashRes.ok) {
           const hashData = await hashRes.json();
@@ -222,9 +250,9 @@ export default function ListPropertyPage() {
         rooms: formData.beds,
         bathrooms: formData.baths,
         floor: parseInt(formData.floor) || null,
-        type: "student",
+        type: formData.targetAudience,
         is_available: true,
-        photos: defaultPhotos,
+        photos: photosToSave,
         photo_hashes: photoHashes
       }).select("id").single();
 
@@ -315,7 +343,30 @@ export default function ListPropertyPage() {
                         </button>
                       ))}
                     </div>
-
+                    
+                    <div>
+                      <h3 className="heading text-[var(--forest)] mb-3 text-sm uppercase tracking-wider font-bold">Who is this listing for?</h3>
+                      <div className="flex gap-4">
+                        {[
+                          { id: 'student', label: 'Students Only' },
+                          { id: 'family', label: 'Families Only' }
+                        ].map(target => (
+                          <button
+                            key={target.id}
+                            type="button"
+                            onClick={() => setFormData({...formData, targetAudience: target.id})}
+                            className={`flex-grow py-3 px-4 rounded-xl text-sm font-bold border-2 transition-all ${
+                              formData.targetAudience === target.id 
+                                ? "border-[var(--emerald)] bg-[var(--mint)] text-[var(--forest)] shadow-sm" 
+                                : "border-[var(--foam)] text-[var(--slate)] hover:border-[var(--emerald)] hover:bg-[var(--mist)]"
+                            }`}
+                          >
+                            {target.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+ 
                     <div className="space-y-4">
                       <div className="relative group">
                         <input 
