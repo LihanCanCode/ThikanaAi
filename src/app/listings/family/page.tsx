@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, SlidersHorizontal, X, Loader2, Sparkles, Building, Briefcase } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, MapPin, X, ChevronDown, Sparkles, Filter, Bell, Loader2, LayoutGrid, Map as MapIcon, SlidersHorizontal } from "lucide-react";
+import { toast, Toaster } from "react-hot-toast";
 import Navbar from "@/components/shared/Navbar";
 import ListingCard from "@/components/listings/ListingCard";
 import { DHAKA_AREAS } from "@/lib/utils";
 import type { Listing, SearchFilters } from "@/types";
+import { fadeUpStagger, fadeUp } from "@/lib/animations";
 
 function FamilyListingsContent() {
   const searchParams = useSearchParams();
@@ -15,11 +18,13 @@ function FamilyListingsContent() {
   const [query, setQuery] = useState(initialQ);
   const [inputVal, setInputVal] = useState(initialQ);
   const [filters, setFilters] = useState<SearchFilters>({});
-  const [allListings, setAllListings] = useState<Listing[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
   const [aiParsed, setAiParsed] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  
+  // View states
+  const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
+  const [sortOption, setSortOption] = useState("recommended");
 
   const parseAndSearch = useCallback(async (q: string) => {
     setLoading(true);
@@ -48,10 +53,12 @@ function FamilyListingsContent() {
       });
       const searchData = await searchRes.json();
       let results = (searchData.listings ?? []) as Listing[];
+      
+      // Filter out student listings initially unless specifically requested
       results = results.filter((l) => l.type === "family" || l.type === "professional");
       if (f.type) results = results.filter((l) => l.type === f.type);
+      
       setListings(results);
-      setAllListings(results);
     } catch {
       setListings([]);
     } finally {
@@ -69,13 +76,36 @@ function FamilyListingsContent() {
       });
       const searchData = await searchRes.json();
       let results = (searchData.listings ?? []) as Listing[];
+      
       results = results.filter((l) => l.type === "family" || l.type === "professional");
       if (f.type) results = results.filter((l) => l.type === f.type);
+      
       setListings(results);
     } finally {
       setLoading(false);
     }
   }, [query]);
+
+  const handleSaveSearch = async () => {
+    try {
+      const res = await fetch("/api/alerts/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...filters, type: "family" })
+      });
+      if (res.status === 401) {
+        window.location.href = "/auth/login?returnUrl=/listings/family";
+        return;
+      }
+      if (res.ok) {
+        toast.success("Alert saved! We'll notify you when new matches appear.");
+      } else {
+        toast.error("Failed to save alert.");
+      }
+    } catch (err) {
+      toast.error("An error occurred.");
+    }
+  };
 
   useEffect(() => {
     parseAndSearch(initialQ);
@@ -90,134 +120,285 @@ function FamilyListingsContent() {
   const clearFilters = () => {
     setQuery("");
     setInputVal("");
+    setFilters({});
     parseAndSearch("");
   };
 
-  return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
-      <Navbar />
+  const removeFilter = (key: keyof SearchFilters) => {
+    const newFilters = { ...filters };
+    delete newFilters[key];
+    setFilters(newFilters);
+    searchWithFilters(newFilters);
+  };
 
-      {/* Top Search bar */}
-      <div style={{ background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", padding: "1.25rem 0" }}>
-        <div className="container">
-          <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "1rem" }}>
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: "6px",
-              background: "var(--accent-light)", color: "var(--accent-hover)",
-              padding: "4px 12px", borderRadius: "var(--radius-full)",
-              fontSize: "0.8rem", fontWeight: 700,
-            }}>
-              🏠 Family & Professional Rentals
-            </span>
+  const sortedListings = [...listings].sort((a, b) => {
+    if (sortOption === "price_low") return a.rent_bdt - b.rent_bdt;
+    if (sortOption === "price_high") return b.rent_bdt - a.rent_bdt;
+    if (sortOption === "ai_score") return (b.trust_score ?? 0) - (a.trust_score ?? 0);
+    // Recommended
+    return (b.trust_score ?? 0) - (a.trust_score ?? 0);
+  });
+
+  return (
+    <div className="min-h-screen bg-[var(--mist)] flex flex-col">
+      <Navbar />
+      <Toaster position="bottom-center" />
+
+      <div className="flex-grow pt-8 container mx-auto px-6 pb-20 flex flex-col md:flex-row gap-8">
+        
+        {/* FILTER SIDEBAR */}
+        <aside className="w-full md:w-[280px] shrink-0 h-fit md:sticky md:top-24 bg-white rounded-2xl border border-[var(--foam)] shadow-[var(--shadow-sm)] p-6 overflow-y-auto max-h-[calc(100vh-120px)] custom-scrollbar">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="heading text-[var(--forest)] flex items-center gap-2">
+              <SlidersHorizontal size={18} /> Filters
+            </h2>
+            <button onClick={clearFilters} className="text-sm font-medium text-[var(--jade)] hover:text-[var(--emerald)] hover-underline">Reset All</button>
           </div>
 
-          <form onSubmit={handleSearch} style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-            <div style={{
-              flex: 1, display: "flex", alignItems: "center", gap: "10px",
-              background: "var(--bg-base)", border: "1.5px solid var(--border)",
-              borderRadius: "var(--radius-lg)", padding: "0.6rem 1rem",
-            }}>
-              {loading ? <Loader2 size={17} style={{ color: "var(--primary)", animation: "spin 1s linear infinite" }} />
-                : <Search size={17} style={{ color: "var(--primary)" }} />}
-              <input
+          <form onSubmit={handleSearch} className="mb-6">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--stone)]" />
+              <input 
+                type="text" 
                 value={inputVal}
                 onChange={e => setInputVal(e.target.value)}
-                placeholder='Search family flats: "3 room flat in Dhanmondi" or "furnished sublet Banani"'
-                style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: "0.9rem", fontFamily: "inherit" }}
+                className="input pl-9 w-full text-sm" 
+                placeholder="AI Search (e.g. 3 bed in Banani)" 
               />
-              {inputVal && <button type="button" onClick={clearFilters} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}><X size={15} /></button>}
             </div>
-            <button type="submit" className="btn btn-primary" style={{ padding: "0.6rem 1.25rem" }}>Search</button>
-            <button type="button" onClick={() => setShowFilters(!showFilters)} className="btn btn-outline" style={{ padding: "0.6rem 1rem", gap: "6px" }}>
-              <SlidersHorizontal size={15} /> Filters
-            </button>
+            {aiParsed && (
+              <div className="mt-2 text-xs font-semibold text-[var(--gold)] flex items-center gap-1 bg-[var(--amber-soft)] px-2 py-1 rounded">
+                <Sparkles size={12} /> AI filters applied
+              </div>
+            )}
           </form>
 
-          {/* AI parsed tags */}
-          {aiParsed && Object.keys(filters).some(k => (filters as Record<string,unknown>)[k] !== null && (filters as Record<string,unknown>)[k] !== undefined) && (
-            <div style={{
-              marginTop: "10px", padding: "8px 14px",
-              background: "var(--primary-xlight)", borderRadius: "var(--radius-md)",
-              border: "1px solid var(--primary-light)",
-              display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap",
-            }}>
-              <Sparkles size={14} style={{ color: "var(--primary)" }} />
-              <span style={{ fontSize: "0.8rem", color: "var(--primary)", fontWeight: 600 }}>AI understood:</span>
-              {filters.area && <span className="badge badge-green">📍 {filters.area}</span>}
-              {filters.rooms && <span className="badge badge-green">🛏 {filters.rooms} rooms</span>}
-              {filters.max_rent && <span className="badge badge-green">৳ Under {filters.max_rent.toLocaleString()}</span>}
-              {filters.type && <span className="badge badge-green">{filters.type}</span>}
+          <div className="space-y-6">
+            {/* Location */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="caption text-[var(--slate)] font-semibold uppercase tracking-wider">Area</h3>
+              </div>
+              <div className="relative">
+                <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--stone)]" />
+                <select 
+                  className="input pl-9 w-full text-sm cursor-pointer appearance-none bg-transparent"
+                  value={filters.area || ""} 
+                  onChange={e => { const f = { ...filters, area: e.target.value || undefined }; setFilters(f); searchWithFilters(f); }}
+                >
+                  <option value="">All Dhaka Areas</option>
+                  {DHAKA_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--stone)] pointer-events-none" />
+              </div>
+            </div>
+
+            <div className="w-full h-px bg-[var(--foam)]" />
+
+            {/* Type Filter */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="caption text-[var(--slate)] font-semibold uppercase tracking-wider">Rental Type</h3>
+              </div>
+              <div className="relative">
+                <select 
+                  className="input w-full text-sm cursor-pointer appearance-none pr-8"
+                  value={filters.type || ""} 
+                  onChange={e => { const f = { ...filters, type: e.target.value as "family" | "professional" || undefined }; setFilters(f); searchWithFilters(f); }}
+                >
+                  <option value="">Family & Professional</option>
+                  <option value="family">👨‍👩‍👧 Family Home</option>
+                  <option value="professional">💼 Professional Sublet</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--stone)] pointer-events-none" />
+              </div>
+            </div>
+
+            <div className="w-full h-px bg-[var(--foam)]" />
+
+            {/* Price Range */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="caption text-[var(--slate)] font-semibold uppercase tracking-wider">Max Rent</h3>
+                <span className="text-sm font-semibold text-[var(--emerald)] bangla">
+                  {filters.max_rent ? `৳${filters.max_rent.toLocaleString()}` : "Any"}
+                </span>
+              </div>
+              <input 
+                type="range" 
+                min="10000" max="100000" step="2000" 
+                value={filters.max_rent || 100000}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  const f = { ...filters, max_rent: val >= 100000 ? undefined : val };
+                  setFilters(f);
+                  searchWithFilters(f);
+                }}
+                className="w-full accent-[var(--emerald)]"
+              />
+              <div className="flex justify-between text-xs text-[var(--stone)] mt-2 bangla">
+                <span>৳10k</span>
+                <span>৳100k+</span>
+              </div>
+            </div>
+            
+            <div className="w-full h-px bg-[var(--foam)]" />
+
+            {/* Furnishing Filter */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="caption text-[var(--slate)] font-semibold uppercase tracking-wider">Furnishing</h3>
+              </div>
+              <div className="relative">
+                <select 
+                  className="input w-full text-sm cursor-pointer appearance-none pr-8"
+                  value={filters.furnishing || ""} 
+                  onChange={e => { const f = { ...filters, furnishing: e.target.value as SearchFilters["furnishing"] || undefined }; setFilters(f); searchWithFilters(f); }}
+                >
+                  <option value="">Any Furnishing</option>
+                  <option value="unfurnished">Unfurnished</option>
+                  <option value="semi">Semi-Furnished</option>
+                  <option value="fully">Fully-Furnished</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--stone)] pointer-events-none" />
+              </div>
+            </div>
+            
+          </div>
+
+          <div className="mt-8">
+            <button onClick={handleSaveSearch} className="w-full py-3 bg-[var(--primary-light)] hover:bg-[var(--primary-xlight)] text-[var(--forest)] rounded-xl font-bold transition-colors flex items-center justify-center gap-2 border border-[var(--emerald)]/30">
+              <Bell size={16} /> Save Search as Alert
+            </button>
+          </div>
+        </aside>
+
+        {/* RESULTS AREA */}
+        <div className="flex-grow flex flex-col min-w-0">
+          {/* Results Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+            <div>
+              <h1 className="text-2xl font-['Playfair_Display'] font-bold text-[var(--forest)] mb-2">
+                {loading ? "Searching..." : `${sortedListings.length} Premium Rentals Available`}
+              </h1>
+              {/* Active Filter Chips */}
+              <AnimatePresence>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(filters).filter(([k,v]) => v !== undefined && v !== "").map(([k, v]) => (
+                    <motion.div 
+                      key={k}
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      className="bg-[var(--accent-light)] text-[var(--accent-hover)] text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-[var(--accent-light)]"
+                    >
+                      <span className="capitalize">{k.replace('_', ' ')}:</span> {v}
+                      <button onClick={() => removeFilter(k as keyof SearchFilters)} className="hover:text-red-600 transition-colors ml-1">
+                        <X size={14} />
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              </AnimatePresence>
+            </div>
+            
+            <div className="flex items-center gap-4 self-start sm:self-auto shrink-0">
+              <div className="relative">
+                <select 
+                  className="input py-2 pl-3 pr-8 text-sm bg-white cursor-pointer appearance-none border-[var(--foam)] hover:border-[var(--emerald)]"
+                  value={sortOption}
+                  onChange={e => setSortOption(e.target.value)}
+                >
+                  <option value="recommended">Sort: Recommended</option>
+                  <option value="price_low">Sort: Price (Low to High)</option>
+                  <option value="price_high">Sort: Price (High to Low)</option>
+                  <option value="ai_score">Sort: Highest AI Score</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--stone)] pointer-events-none" />
+              </div>
+              
+              <div className="flex bg-white rounded-lg border border-[var(--foam)] p-1 shrink-0 shadow-sm">
+                <button 
+                  onClick={() => setViewMode("grid")}
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-[var(--mist)] text-[var(--emerald)]" : "text-[var(--stone)] hover:text-[var(--forest)]"}`}
+                >
+                  <LayoutGrid size={18} />
+                </button>
+                <button 
+                  onClick={() => setViewMode("map")}
+                  className={`p-1.5 rounded-md transition-colors ${viewMode === "map" ? "bg-[var(--mist)] text-[var(--emerald)]" : "text-[var(--stone)] hover:text-[var(--forest)]"}`}
+                >
+                  <MapIcon size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Dynamic Content: Grid or Map */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-[var(--slate)]">
+              <Loader2 size={32} className="animate-spin text-[var(--emerald)] mb-4" />
+              <p className="font-medium">Curating premium listings...</p>
+            </div>
+          ) : sortedListings.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-[var(--foam)] shadow-sm text-center px-6">
+              <div className="text-5xl mb-4">🏠</div>
+              <h3 className="text-xl font-bold text-[var(--forest)] mb-2">No matching homes</h3>
+              <p className="text-[var(--slate)] mb-6">Try expanding your search filter parameters or choosing a different area.</p>
+              <button onClick={clearFilters} className="bg-[var(--forest)] hover:bg-[var(--jade)] text-white px-6 py-2 rounded-full font-semibold transition-colors">
+                Clear Filters
+              </button>
+            </div>
+          ) : viewMode === "grid" ? (
+            <motion.div 
+              variants={fadeUpStagger}
+              initial="hidden"
+              animate="show"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6"
+            >
+              {sortedListings.map((listing) => (
+                <motion.div key={listing.id} variants={fadeUp}>
+                  <ListingCard listing={listing} />
+                </motion.div>
+              ))}
+            </motion.div>
+          ) : (
+            <div className="flex-grow flex gap-6 h-[calc(100vh-220px)] bg-white rounded-2xl border border-[var(--foam)] p-2 overflow-hidden shadow-[var(--shadow-sm)]">
+              {/* List alongside map */}
+              <div className="w-[45%] overflow-y-auto custom-scrollbar pr-2 space-y-4">
+                {sortedListings.map((listing) => (
+                  <ListingCard key={listing.id} listing={listing} />
+                ))}
+              </div>
+              {/* Map Placeholder */}
+              <div className="flex-grow bg-[var(--bg-muted)] rounded-xl relative overflow-hidden flex items-center justify-center">
+                 <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(42,125,70,0.5) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+                 <div className="relative z-10 text-center text-[var(--forest)] flex flex-col items-center bg-white/80 p-6 rounded-2xl backdrop-blur-sm border border-white/50">
+                   <MapIcon size={48} className="mb-4 text-[var(--emerald)]" />
+                   <p className="font-bold text-lg mb-1">Interactive Map View</p>
+                   <p className="text-sm text-[var(--slate)]">Integrate Mapbox or Google Maps here.</p>
+                 </div>
+                 
+                 {/* Mock Map Markers for visual flair */}
+                 {sortedListings.slice(0,3).map((l, i) => (
+                   <div key={l.id} className="absolute bg-white text-[var(--forest)] text-sm font-bold py-1.5 px-3 rounded-full shadow-[0_4px_12px_rgba(0,0,0,0.15)] bangla transform hover:scale-110 cursor-pointer transition-transform border border-[var(--foam)] flex items-center gap-1" style={{ top: `${30 + i * 15}%`, left: `${40 + i * 20}%` }}>
+                     <div className="w-2 h-2 rounded-full bg-[var(--emerald)]" />
+                     ৳{(l.rent_bdt/1000).toFixed(1)}k
+                   </div>
+                 ))}
+              </div>
             </div>
           )}
         </div>
+
       </div>
-
-      {/* Advanced Filters */}
-      {showFilters && (
-        <div style={{ background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", padding: "1rem 0" }}>
-          <div className="container">
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" }}>
-              <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.area || ""} onChange={e => { const f = { ...filters, area: e.target.value || undefined }; setFilters(f); searchWithFilters(f); }}>
-                <option value="">All Areas</option>
-                {DHAKA_AREAS.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
-              <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.type || ""} onChange={e => { const f = { ...filters, type: e.target.value as "family" | "professional" || undefined }; setFilters(f); searchWithFilters(f); }}>
-                <option value="">All Types</option>
-                <option value="family">👨‍👩‍👧 Family Flat</option>
-                <option value="professional">💼 Professional Sublet</option>
-              </select>
-              <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.furnishing || ""} onChange={e => { const f = { ...filters, furnishing: e.target.value as SearchFilters["furnishing"] || undefined }; setFilters(f); searchWithFilters(f); }}>
-                <option value="">Any Furnishing</option>
-                <option value="unfurnished">Unfurnished</option>
-                <option value="semi">Semi-Furnished</option>
-                <option value="fully">Fully-Furnished</option>
-              </select>
-              <select className="input" style={{ fontSize: "0.85rem" }}
-                value={filters.max_rent || ""} onChange={e => { const f = { ...filters, max_rent: e.target.value ? parseInt(e.target.value) : undefined }; setFilters(f); searchWithFilters(f); }}>
-                <option value="">Max Rent</option>
-                <option value="15000">Under ৳15,000</option>
-                <option value="25000">Under ৳25,000</option>
-                <option value="35000">Under ৳35,000</option>
-                <option value="50000">Under ৳50,000</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Grid of listings */}
-      <main className="container" style={{ padding: "2.5rem 1.5rem" }}>
-        <h1 style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: "1.5rem" }}>
-          {listings.length} Premium Rentals Available
-        </h1>
-
-        {listings.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "4rem 0", color: "var(--text-muted)" }}>
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🔍</div>
-            <h3 style={{ fontWeight: 600 }}>No matching family homes</h3>
-            <p style={{ fontSize: "0.85rem" }}>Try expanding your search filter parameters.</p>
-            <button onClick={clearFilters} className="btn btn-outline" style={{ marginTop: "1rem" }}>Clear Filters</button>
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "1.5rem" }}>
-            {listings.map(listing => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
-        )}
-      </main>
-
-      <style jsx global>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
 export default function FamilyListingsPage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: "100vh", background: "var(--bg-base)" }}><Navbar /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--mist)]"><Navbar /></div>}>
       <FamilyListingsContent />
     </Suspense>
   );

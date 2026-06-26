@@ -32,6 +32,7 @@ export default function ListingMap({
   // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
+    if (!token) return; // Do not initialize mapbox if token is missing
 
     mapboxgl.accessToken = token;
 
@@ -218,7 +219,15 @@ export default function ListingMap({
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      <div ref={mapContainerRef} style={{ width: "100%", height: "100%", borderRadius: "var(--radius-lg)" }} />
+      {!token ? (
+        <div style={{ width: "100%", height: "100%", borderRadius: "var(--radius-lg)", background: "var(--bg-muted)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", textAlign: "center" }}>
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🗺️</div>
+          <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "0.5rem" }}>Map Unavailable</h3>
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>Please set the <code>NEXT_PUBLIC_MAPBOX_TOKEN</code> in your .env file to enable the interactive map.</p>
+        </div>
+      ) : (
+        <div ref={mapContainerRef} style={{ width: "100%", height: "100%", borderRadius: "var(--radius-lg)" }} />
+      )}
       {routeInfo && (
         <div style={{
           position: "absolute",

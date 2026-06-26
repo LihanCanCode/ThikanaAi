@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { MapPin, Bed, Bath, Shield, ShieldCheck, AlertTriangle, X } from "lucide-react";
+import { motion } from "framer-motion";
+import { MapPin, ShieldCheck, AlertTriangle, X, CheckCircle2, Heart } from "lucide-react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import { formatBDT, timeAgo, truncate } from "@/lib/utils";
 import type { Listing } from "@/types";
+import { springTransition } from "@/lib/animations";
 
 interface ListingCardProps {
   listing: Listing;
@@ -16,129 +19,137 @@ export default function ListingCard({ listing, distanceKm }: ListingCardProps) {
   const [showTrustScore, setShowTrustScore] = useState(false);
   const trustScore = listing.trust_score ?? null;
   const breakdown = (listing as any).trust_score_breakdown ?? null;
+  const isHighTrust = trustScore !== null && trustScore >= 80;
 
   return (
     <>
-      <Link href={`/listings/${listing.id}`} style={{ textDecoration: "none" }}>
-        <article className="card" style={{ overflow: "hidden", cursor: "pointer" }}>
-          {/* Photo */}
-          <div style={{ position: "relative", height: "200px", background: "var(--bg-subtle)", overflow: "hidden" }}>
-            {listing.photos[0] ? (
-              <img
+      <motion.div
+        whileHover={{ y: -6, transition: springTransition }}
+        className="group relative bg-white rounded-[16px] border border-[var(--foam)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-lg)] transition-shadow duration-350 overflow-hidden flex flex-col"
+      >
+        <Link href={`/listings/${listing.id}`} style={{ textDecoration: "none", display: "flex", flexDirection: "column", height: "100%" }}>
+          {/* Image Container */}
+          <div className="relative aspect-[16/10] w-full overflow-hidden bg-[var(--mist)]">
+            {listing.photos && listing.photos[0] ? (
+              <Image
                 src={listing.photos[0]}
                 alt={listing.title_en}
-                style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.4s ease" }}
-                onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.transform = "scale(1.04)"}
-                onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.transform = "scale(1)"}
+                fill
+                className="object-cover transition-transform duration-350 group-hover:scale-105"
               />
             ) : (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-muted)", fontSize: "2rem" }}>
+              <div className="flex items-center justify-center w-full h-full text-[var(--slate)] text-4xl bg-[var(--mist)]">
                 🏠
               </div>
             )}
-
-            {/* Type/Gender Badges overlay */}
-            <div style={{ position: "absolute", top: "10px", left: "10px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
-              <span className={`badge badge-${listing.type === "student" ? "green" : listing.type === "family" ? "amber" : "muted"}`}>
+            
+            {/* Type & Gender Badges overlay */}
+            <div className="absolute top-3 left-3 flex gap-2 flex-wrap z-10">
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-sm ${
+                listing.type === "student" ? "bg-[var(--emerald)]/90 text-white" : 
+                listing.type === "family" ? "bg-[var(--gold)]/90 text-white" : 
+                "bg-[var(--slate)]/90 text-white"
+              }`}>
                 {listing.type === "student" ? "🎓 Student" : listing.type === "family" ? "👨‍👩‍👧 Family" : "💼 Professional"}
               </span>
-              {listing.for_gender !== "any" && (
-                <span className="badge badge-muted">
+              {listing.for_gender && listing.for_gender !== "any" && (
+                <span className="bg-white/90 text-[var(--forest)] px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-sm border border-[var(--foam)]">
                   {listing.for_gender === "male" ? "👨 Male" : "👩 Female"}
                 </span>
               )}
             </div>
 
-            {/* AI Trust Score pill - clickable */}
+            {/* AI Trust Score Badge */}
             {trustScore !== null && (
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowTrustScore(true); }}
-                style={{
-                  position: "absolute", top: "10px", right: "10px",
-                  background: "rgba(255,255,255,0.95)",
-                  borderRadius: "var(--radius-full)",
-                  padding: "4px 10px",
-                  display: "flex", alignItems: "center", gap: "4px",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-                  border: "none", cursor: "pointer",
-                  color: trustScore >= 80 ? "var(--success)" : trustScore >= 50 ? "#F59E0B" : "var(--danger)",
-                  fontWeight: 800, fontSize: "0.75rem",
-                }}
+                className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 backdrop-blur-md shadow-sm transition-transform hover:scale-105 z-10 ${
+                  isHighTrust 
+                    ? "bg-[var(--amber-soft)]/95 text-[var(--gold)] border border-[var(--gold)]/20" 
+                    : trustScore >= 50 
+                    ? "bg-[#FEF3C7]/95 text-[#D97706] border border-[#D97706]/20"
+                    : "bg-[#FEE2E2]/95 text-[#DC2626] border border-[#DC2626]/20"
+                }`}
               >
-                {trustScore >= 80 ? <ShieldCheck size={13} /> : <AlertTriangle size={13} />}
-                {trustScore} AI Score
+                {trustScore >= 80 ? <ShieldCheck size={14} /> : <AlertTriangle size={14} />}
+                <span>{trustScore} AI Score</span>
               </button>
             )}
 
             {/* Analyzing badge when no score yet */}
             {trustScore === null && (
-              <div style={{
-                position: "absolute", top: "10px", right: "10px",
-                background: "rgba(255,255,255,0.9)", borderRadius: "999px",
-                padding: "4px 10px", fontSize: "0.7rem", fontWeight: 700,
-                color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px"
-              }}>
-                <Shield size={12} /> Analyzing…
+              <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 backdrop-blur-md shadow-sm bg-white/90 text-[var(--text-muted)] border border-[var(--foam)] z-10">
+                <span className="w-2 h-2 rounded-full border-2 border-[var(--slate)] border-t-transparent animate-spin" />
+                Analyzing
               </div>
             )}
 
             {/* Available pill */}
             {listing.is_available && (
-              <div style={{
-                position: "absolute", bottom: "10px", left: "10px",
-                background: "var(--success)", borderRadius: "var(--radius-full)",
-                padding: "3px 10px", display: "flex", alignItems: "center", gap: "4px",
-              }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", animation: "pulse-green 2s infinite" }} />
-                <span style={{ fontSize: "0.7rem", fontWeight: 600, color: "#fff" }}>Available</span>
+              <div className="absolute bottom-3 left-3 bg-[var(--success)]/95 text-white backdrop-blur-md rounded-full px-2.5 py-1 flex items-center gap-1.5 shadow-sm z-10">
+                <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Available</span>
               </div>
             )}
           </div>
 
           {/* Content */}
-          <div style={{ padding: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
-              <MapPin size={13} style={{ color: "var(--primary)", flexShrink: 0 }} />
-              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 500 }}>
-                {listing.area}
-                {distanceKm !== undefined && (
-                  <span style={{ marginLeft: "6px", color: "var(--primary)", fontWeight: 600 }}>
-                    · {distanceKm.toFixed(1)} km
-                  </span>
-                )}
-              </span>
-            </div>
-
-            <h3 style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px", lineHeight: 1.3 }}>
-              {truncate(listing.title_en, 55)}
-            </h3>
-            {listing.title_bn && (
-              <p className="bangla" style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "10px" }}>
-                {truncate(listing.title_bn, 40)}
-              </p>
-            )}
-
-            <div style={{ display: "flex", gap: "16px", marginBottom: "12px" }}>
-              <Stat icon={<Bed size={13} />} value={`${listing.rooms} bed`} />
-              <Stat icon={<Bath size={13} />} value={`${listing.bathrooms} bath`} />
-              <Stat icon={<span style={{ fontSize: "12px" }}>🪑</span>} value={listing.furnishing === "fully" ? "Furnished" : listing.furnishing === "semi" ? "Semi" : "Bare"} />
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border)", paddingTop: "10px" }}>
+          <div className="p-4 flex flex-col gap-2 flex-grow bg-white">
+            <div className="flex items-start justify-between gap-2">
               <div>
-                <span style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--primary)" }}>
-                  {formatBDT(listing.rent_bdt)}
-                </span>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginLeft: "2px" }}>/month</span>
-                {listing.utilities_included && (
-                  <span style={{ display: "block", fontSize: "0.7rem", color: "var(--success)", fontWeight: 600 }}>✓ Utilities included</span>
+                <div className="flex items-center gap-1 text-[var(--stone)] text-xs font-medium mb-1">
+                  <MapPin size={12} />
+                  {listing.area}
+                </div>
+                <h3 className="font-['Playfair_Display'] font-semibold text-lg text-[var(--forest)] leading-tight line-clamp-1">
+                  {truncate(listing.title_en, 50)}
+                </h3>
+                {listing.title_bn && (
+                  <p className="bangla text-xs text-[var(--slate)] mt-1 line-clamp-1">
+                    {truncate(listing.title_bn, 40)}
+                  </p>
                 )}
               </div>
-              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>{timeAgo(listing.created_at)}</span>
+              <button 
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                className="text-[var(--stone)] hover:text-red-500 transition-colors shrink-0 z-10"
+              >
+                <Heart size={18} />
+              </button>
+            </div>
+
+            <div className="text-[var(--slate)] text-sm mb-1 mt-1 font-medium">
+              {listing.rooms} Bed &middot; {listing.bathrooms} Bath &middot; {listing.furnishing === "fully" ? "Furnished" : listing.furnishing === "semi" ? "Semi-furnished" : "Unfurnished"}
+            </div>
+
+            <div className="text-[var(--emerald)] font-bold text-xl bangla mb-2 mt-auto">
+              ৳{listing.rent_bdt.toLocaleString('en-IN')} <span className="text-sm font-normal text-[var(--stone)] font-sans">/ month</span>
+            </div>
+
+            {/* Divider */}
+            <div className="w-full h-px bg-[var(--foam)] my-1" />
+
+            {/* Footer info */}
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center gap-2">
+                {distanceKm !== undefined && (
+                  <span className="text-xs font-semibold text-[var(--forest)] bg-[var(--mist)] px-2 py-1 rounded-md flex items-center gap-1">
+                    🎓 {distanceKm.toFixed(1)} km
+                  </span>
+                )}
+                {listing.utilities_included && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--success)] bg-[#ECFDF5] px-2 py-1 rounded-md flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Utilities
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-semibold text-[var(--slate)] uppercase tracking-wider">
+                {timeAgo(listing.created_at)}
+              </span>
             </div>
           </div>
-        </article>
-      </Link>
+        </Link>
+      </motion.div>
 
       {/* AI Trust Score Scorecard Modal */}
       {showTrustScore && typeof document !== "undefined" && createPortal(
@@ -216,14 +227,5 @@ export default function ListingCard({ listing, distanceKm }: ListingCardProps) {
         document.body
       )}
     </>
-  );
-}
-
-function Stat({ icon, value }: { icon: React.ReactNode; value: string }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-      <span style={{ color: "var(--text-muted)" }}>{icon}</span>
-      <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)", fontWeight: 500 }}>{value}</span>
-    </div>
   );
 }

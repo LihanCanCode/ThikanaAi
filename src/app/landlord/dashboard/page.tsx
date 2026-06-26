@@ -5,13 +5,19 @@ import Link from "next/link";
 import Navbar from "@/components/shared/Navbar";
 import { formatBDT } from "@/lib/utils";
 import { PlusCircle, CheckCircle, Clock, AlertCircle, TrendingUp, Loader2, UserPlus } from "lucide-react";
-import {
-  getLandlordDashboardData,
-  markTenantPaid,
-  addTenant,
-  type TenantWithPayment,
-} from "@/app/landlord/actions";
+import { createClient } from "@/lib/supabase/client";
 import type { Listing } from "@/types";
+
+export interface TenantWithPayment {
+  id: string;
+  listing_id: string | null;
+  tenant_name: string;
+  tenant_phone: string | null;
+  room_label: string | null;
+  monthly_rent: number;
+  status: "paid" | "due" | "overdue";
+  paid_on: string | null;
+}
 
 export default function LandlordDashboard() {
   const [tenants, setTenants] = useState<TenantWithPayment[]>([]);
@@ -22,14 +28,65 @@ export default function LandlordDashboard() {
   const [adding, setAdding] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
 
+  const supabase = createClient();
+
   const loadData = useCallback(async () => {
     setLoading(true);
-    const data = await getLandlordDashboardData();
-    setTenants(data.tenants ?? []);
-    setMyListings((data.listings ?? []) as Listing[]);
-    setMonthLabel(data.monthLabel ?? "");
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    const today = new Date();
+    const currentMonth = today.toISOString().substring(0, 7); // YYYY-MM
+    setMonthLabel(today.toLocaleDateString("en-US", { month: "long", year: "numeric" }));
+
+    // a) SELECT * FROM listings WHERE landlord_id = {current_user_id} ORDER BY created_at DESC
+    const { data: listings } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("landlord_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (listings) {
+      setMyListings(listings as Listing[]);
+    }
+
+    // b) Fetch tenants and their payments
+    const { data: tenantsData } = await supabase
+      .from("tenants")
+      .select(`
+        *,
+        rent_payments(status, paid_on, month)
+      `)
+      .eq("landlord_id", user.id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+
+    if (tenantsData) {
+      const mappedTenants: TenantWithPayment[] = tenantsData.map((t: any) => {
+        const paymentThisMonth = Array.isArray(t.rent_payments) 
+          ? t.rent_payments.find((p: any) => p.month === currentMonth || (p.month && p.month.startsWith(currentMonth)))
+          : null;
+          
+        return {
+          id: t.id,
+          listing_id: t.listing_id,
+          tenant_name: t.tenant_name,
+          tenant_phone: t.tenant_phone,
+          room_label: t.room_label,
+          monthly_rent: t.monthly_rent,
+          status: paymentThisMonth?.status || "due",
+          paid_on: paymentThisMonth?.paid_on || null,
+        };
+      });
+      setTenants(mappedTenants);
+    }
+
     setLoading(false);
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     loadData();
@@ -39,10 +96,24 @@ export default function LandlordDashboard() {
   const collected = tenants.filter((t) => t.status === "paid").reduce((s, t) => s + t.monthly_rent, 0);
   const pending = totalMonthly - collected;
 
-  const handleMarkPaid = async (id: string) => {
-    setMarkingId(id);
-    await markTenantPaid(id);
-    await loadData();
+  const handleMarkPaid = async (tenantId: string, rent: number) => {
+    setMarkingId(tenantId);
+    
+    const today = new Date();
+    const currentMonthStr = today.toISOString().substring(0, 7); // 'YYYY-MM'
+    
+    // INSERT into rent_payments
+    const { error } = await supabase.from("rent_payments").insert({
+      tenant_id: tenantId,
+      month: currentMonthStr,
+      amount: rent,
+      paid_on: today.toISOString().split("T")[0],
+      status: "paid"
+    });
+    
+    if (!error) {
+      await loadData();
+    }
     setMarkingId(null);
   };
 
@@ -50,11 +121,35 @@ export default function LandlordDashboard() {
     e.preventDefault();
     setAdding(true);
     const formData = new FormData(e.currentTarget);
-    await addTenant(formData);
-    setShowAddTenant(false);
-    await loadData();
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setAdding(false);
+      return;
+    }
+
+    const tenant_name = formData.get("tenant_name") as string;
+    const tenant_phone = formData.get("tenant_phone") as string;
+    const room_label = formData.get("room_label") as string;
+    const monthly_rent = parseInt(formData.get("monthly_rent") as string, 10);
+    const listing_id = (formData.get("listing_id") as string) || null;
+
+    const { error } = await supabase.from("tenants").insert({
+      landlord_id: user.id,
+      listing_id,
+      tenant_name,
+      tenant_phone: tenant_phone || null,
+      room_label: room_label || null,
+      monthly_rent,
+      is_active: true
+    });
+
+    if (!error) {
+      setShowAddTenant(false);
+      await loadData();
+      (e.target as HTMLFormElement).reset();
+    }
     setAdding(false);
-    (e.target as HTMLFormElement).reset();
   };
 
   return (
@@ -125,8 +220,17 @@ export default function LandlordDashboard() {
         </div>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: "3rem", color: "var(--text-muted)" }}>
-            <Loader2 size={28} style={{ animation: "spin 1s linear infinite" }} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "1.5rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {[1, 2, 3].map(i => (
+                <div key={i} className="card" style={{ padding: "2rem", background: "var(--mist)", animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite", borderRadius: "var(--radius-md)" }} />
+              ))}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {[1, 2].map(i => (
+                <div key={i} className="card" style={{ padding: "2rem", background: "var(--mist)", animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite", borderRadius: "var(--radius-md)" }} />
+              ))}
+            </div>
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "1.5rem" }}>
@@ -160,7 +264,7 @@ export default function LandlordDashboard() {
                           <StatusBadge status={t.status} />
                           {t.status !== "paid" && (
                             <button
-                              onClick={() => handleMarkPaid(t.id)}
+                              onClick={() => handleMarkPaid(t.id, t.monthly_rent)}
                               disabled={markingId === t.id}
                               className="btn btn-primary"
                               style={{ padding: "0.4rem 0.9rem", fontSize: "0.78rem" }}

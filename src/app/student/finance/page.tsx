@@ -3,10 +3,17 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import CountUp from "react-countup";
-import { Users, Calculator, Plus, Minus, Utensils, AlertTriangle, ArrowRight, TrendingUp } from "lucide-react";
-import { Navbar } from "@/components/layout/Navbar";
+import { Users, Calculator, Plus, Minus, Utensils, AlertTriangle, ArrowRight, TrendingUp, Zap, Lock } from "lucide-react";
+import Navbar from "@/components/shared/Navbar";
 import { GreenButton } from "@/components/ui/GreenButton";
 import { fadeUpStagger, fadeUp } from "@/lib/animations";
+
+interface Deposit {
+  id: number;
+  label: string;
+  amount: number;
+  paidOn: string;
+}
 
 export default function FinancePage() {
   // Rent Splitter State
@@ -21,6 +28,15 @@ export default function FinancePage() {
   const [allowance, setAllowance] = useState(15000);
   const [utilities, setUtilities] = useState(900);
 
+  // SECTION A: Utility Splitter State
+  const [utilityBill, setUtilityBill] = useState(2500);
+  const [utilityPeople, setUtilityPeople] = useState(3);
+  const utilityShare = Math.round(utilityBill / utilityPeople);
+
+  // SECTION B: Deposit Tracker State
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [depositForm, setDepositForm] = useState({ label: '', amount: 0, paidOn: '' });
+
   // Derived Values
   const rentShare = Math.round(rent / flatmates);
   const dailyMealCost = meals.breakfast + meals.lunch + meals.dinner;
@@ -30,6 +46,28 @@ export default function FinancePage() {
   const remaining = allowance - totalExpenses;
   const spentPercentage = Math.min(100, Math.max(0, (totalExpenses / allowance) * 100));
   const isDanger = remaining < (allowance * 0.1);
+
+  const totalDeposits = deposits.reduce((acc, d) => acc + d.amount, 0);
+
+  const handleAddDeposit = () => {
+    if (depositForm.label && depositForm.amount > 0 && depositForm.paidOn) {
+      setDeposits([...deposits, { id: Date.now(), ...depositForm }]);
+      setDepositForm({ label: '', amount: 0, paidOn: '' });
+    }
+  };
+
+  const getReturnStatus = (paidOn: string) => {
+    const paidDate = new Date(paidOn);
+    const returnDate = new Date(paidDate);
+    returnDate.setFullYear(returnDate.getFullYear() + 1);
+    
+    const now = new Date();
+    const monthsDiff = (returnDate.getFullYear() - now.getFullYear()) * 12 + (returnDate.getMonth() - now.getMonth());
+    
+    if (monthsDiff < 0) return { text: "Overdue", color: "bg-red-100 text-red-700" };
+    if (monthsDiff <= 3) return { text: `Due in ${monthsDiff} mo`, color: "bg-amber-100 text-amber-700" };
+    return { text: `Due in ${monthsDiff} mo`, color: "bg-green-100 text-green-700" };
+  };
 
   return (
     <div className="min-h-screen bg-[var(--mist)] flex flex-col">
@@ -43,7 +81,7 @@ export default function FinancePage() {
           <p className="body-lg text-[var(--slate)] max-w-2xl mx-auto">The only platform that understands your allowance, your flatmates, and your daily meal contributions.</p>
         </motion.div>
 
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           
           <div className="space-y-8 flex flex-col">
             
@@ -154,6 +192,59 @@ export default function FinancePage() {
                 </div>
               </div>
             </motion.div>
+
+            {/* SECTION A: UTILITY BILL SPLITTER */}
+            <motion.div variants={fadeUpStagger} initial="hidden" animate="show" className="bg-white rounded-3xl p-8 border border-[var(--foam)] shadow-[var(--shadow-sm)] flex-1">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-full bg-[var(--primary-light)] flex items-center justify-center text-[var(--forest)]">
+                  <Zap size={20} />
+                </div>
+                <h2 className="display-lg text-[var(--forest)] text-2xl">Bill Splitter</h2>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Total Monthly Utility Bill</label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-[var(--slate)] bangla">৳</div>
+                    <input 
+                      type="number" 
+                      value={utilityBill}
+                      onChange={(e) => setUtilityBill(Number(e.target.value))}
+                      className="w-full py-4 pl-10 pr-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none text-2xl font-bold text-[var(--forest)] bangla transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Split Among N People</label>
+                  <div className="flex items-center justify-between p-2 bg-[var(--mist)] rounded-xl border-2 border-transparent">
+                    <button onClick={() => setUtilityPeople(Math.max(1, utilityPeople - 1))} className="w-12 h-12 rounded-lg bg-white shadow-sm flex items-center justify-center text-[var(--stone)] hover:text-[var(--forest)] hover:shadow-md transition-all active:scale-95">
+                      <Minus size={20} />
+                    </button>
+                    <span className="text-2xl font-bold text-[var(--forest)] w-12 text-center">{utilityPeople}</span>
+                    <button onClick={() => setUtilityPeople(utilityPeople + 1)} className="w-12 h-12 rounded-lg bg-white shadow-sm flex items-center justify-center text-[var(--stone)] hover:text-[var(--forest)] hover:shadow-md transition-all active:scale-95">
+                      <Plus size={20} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-[var(--foam)] flex items-end justify-between">
+                <div>
+                  <div className="text-[var(--slate)] font-medium mb-1">Each person pays</div>
+                  <div className="text-4xl font-['Playfair_Display'] font-bold text-[var(--emerald)] bangla">
+                    ৳<CountUp end={utilityShare} duration={1} separator="," />
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setUtilities(utilityShare)}
+                  className="bg-[var(--mist)] text-[var(--forest)] hover:bg-[var(--emerald)] hover:text-white px-4 py-2 rounded-lg font-semibold transition-colors text-sm"
+                >
+                  Use Split Result
+                </button>
+              </div>
+            </motion.div>
           </div>
 
           {/* SECTION 3: BUDGET FORECAST */}
@@ -261,6 +352,99 @@ export default function FinancePage() {
           </motion.div>
 
         </div>
+
+        {/* SECTION B: DEPOSIT TRACKER */}
+        <motion.div variants={fadeUpStagger} initial="hidden" animate="show" className="max-w-6xl mx-auto bg-white rounded-3xl p-8 border border-[var(--foam)] shadow-[var(--shadow-sm)]">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[var(--primary-light)] flex items-center justify-center text-[var(--forest)]">
+                <Lock size={20} />
+              </div>
+              <h2 className="display-lg text-[var(--forest)] text-2xl">Security Deposit Tracker</h2>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-[var(--slate)] font-medium">Total Locked</div>
+              <div className="font-bold text-[var(--emerald)] bangla text-2xl">৳{totalDeposits.toLocaleString()}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div className="md:col-span-2">
+              <label className="text-xs font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Deposit Label</label>
+              <input 
+                type="text" 
+                value={depositForm.label}
+                onChange={(e) => setDepositForm({...depositForm, label: e.target.value})}
+                placeholder="e.g. Flat 3B deposit"
+                className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Amount (BDT)</label>
+              <input 
+                type="number" 
+                value={depositForm.amount || ""}
+                onChange={(e) => setDepositForm({...depositForm, amount: Number(e.target.value)})}
+                placeholder="0"
+                className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none bangla transition-colors"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Date Paid</label>
+              <input 
+                type="date" 
+                value={depositForm.paidOn}
+                onChange={(e) => setDepositForm({...depositForm, paidOn: e.target.value})}
+                className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors"
+              />
+            </div>
+            <div className="md:col-span-4 flex justify-end mt-2">
+              <button 
+                onClick={handleAddDeposit}
+                className="bg-[var(--forest)] text-white hover:bg-[var(--jade)] px-6 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2"
+              >
+                <Plus size={18} /> Add Deposit
+              </button>
+            </div>
+          </div>
+
+          {deposits.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-[var(--foam)]">
+                    <th className="py-3 font-semibold text-[var(--slate)] text-sm uppercase tracking-wider">Label</th>
+                    <th className="py-3 font-semibold text-[var(--slate)] text-sm uppercase tracking-wider">Amount</th>
+                    <th className="py-3 font-semibold text-[var(--slate)] text-sm uppercase tracking-wider">Paid On</th>
+                    <th className="py-3 font-semibold text-[var(--slate)] text-sm uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deposits.map((d) => {
+                    const status = getReturnStatus(d.paidOn);
+                    return (
+                      <tr key={d.id} className="border-b border-[var(--foam)] last:border-0 hover:bg-[var(--mist)] transition-colors">
+                        <td className="py-4 font-medium text-[var(--forest)]">{d.label}</td>
+                        <td className="py-4 font-bold text-[var(--emerald)] bangla">৳{d.amount.toLocaleString()}</td>
+                        <td className="py-4 text-[var(--slate)] text-sm">{new Date(d.paidOn).toLocaleDateString()}</td>
+                        <td className="py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.color}`}>
+                            {status.text}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-[var(--slate)] text-sm">
+              No deposits tracked yet.
+            </div>
+          )}
+        </motion.div>
+
       </main>
     </div>
   );

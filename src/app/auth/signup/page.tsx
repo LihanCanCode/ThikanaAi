@@ -6,9 +6,12 @@ import { Home, Loader2, Mail, CheckCircle2, ArrowRight } from "lucide-react";
 import { UNIVERSITIES } from "@/lib/utils";
 import { signup } from "@/app/auth/actions";
 import { GreenButton } from "@/components/ui/GreenButton";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function SignupPage() {
   const [role, setRole] = useState<"student" | "landlord" | "professional" >("student");
+  const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "", universityId: "", phone: "" });
   const [state, formAction, isPending] = useActionState(signup, null);
 
   if (state?.success) {
@@ -186,11 +189,11 @@ export default function SignupPage() {
             <AnimatePresence>
               {role === "student" && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="relative group overflow-hidden">
-                  <select name="university" value={formData.university} onChange={(e) => setFormData({...formData, university: e.target.value})} className="w-full pt-6 pb-2 px-4 bg-[var(--mist)] border-2 border-transparent focus:border-[var(--emerald)] rounded-xl outline-none transition-colors text-[var(--forest)] font-medium appearance-none" required>
+                  <select name="university" value={formData.universityId} onChange={(e) => setFormData({...formData, universityId: e.target.value})} className="w-full pt-6 pb-2 px-4 bg-[var(--mist)] border-2 border-transparent focus:border-[var(--emerald)] rounded-xl outline-none transition-colors text-[var(--forest)] font-medium appearance-none" required>
                     <option value="" disabled></option>
                     {UNIVERSITIES.map(u => <option key={u.id} value={u.id}>{u.name} ({u.short_name})</option>)}
                   </select>
-                  <label className={`absolute left-4 transition-all duration-200 pointer-events-none font-medium ${formData.university ? 'top-2 text-xs text-[var(--slate)]' : 'top-4 text-[15px] text-[var(--stone)]'}`}>University</label>
+                  <label className={`absolute left-4 transition-all duration-200 pointer-events-none font-medium ${formData.universityId ? 'top-2 text-xs text-[var(--slate)]' : 'top-4 text-[15px] text-[var(--stone)]'}`}>University</label>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -202,7 +205,7 @@ export default function SignupPage() {
               </div>
               {/* Password Strength */}
               <div className="w-full h-1 bg-[var(--foam)] rounded-full overflow-hidden flex gap-1">
-                <div className={`h-full transition-all duration-300 ${strength > 0 ? (strength <= 33 ? 'bg-red-500 w-1/3' : strength <= 67 ? 'bg-amber-500 w-2/3' : 'bg-[var(--emerald)] w-full') : 'w-0'}`} />
+                <div className={`h-full transition-all duration-300 ${(formData.password?.length || 0) > 0 ? ((formData.password?.length || 0) < 6 ? 'bg-red-500 w-1/3' : (formData.password?.length || 0) < 8 ? 'bg-amber-500 w-2/3' : 'bg-[var(--emerald)] w-full') : 'w-0'}`} />
               </div>
             </div>
 

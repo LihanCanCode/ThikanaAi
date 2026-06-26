@@ -6,7 +6,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import CountUp from "react-countup";
 import { ArrowRight, Search, MapPin, CheckCircle2, Shield, Brain, CreditCard, MessageSquare } from "lucide-react";
-import { Navbar } from "@/components/layout/Navbar";
+import Navbar from "@/components/shared/Navbar";
 import { RevealOnScroll } from "@/components/ui/RevealOnScroll";
 import { GreenButton } from "@/components/ui/GreenButton";
 import { PropertyCard } from "@/components/cards/PropertyCard";

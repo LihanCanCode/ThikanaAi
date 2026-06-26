@@ -3,9 +3,13 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, SlidersHorizontal, Map as MapIcon, LayoutGrid, X, ChevronDown, CheckCircle2 } from "lucide-react";
-import { Navbar } from "@/components/layout/Navbar";
+import Navbar from "@/components/shared/Navbar";
 import { PropertyCard } from "@/components/cards/PropertyCard";
 import { fadeUpStagger, fadeUp } from "@/lib/animations";
+import dynamic from "next/dynamic";
+import type { Listing } from "@/types";
+
+const ListingMap = dynamic(() => import("@/components/listings/ListingMap"), { ssr: false });
 
 const MOCK_RESULTS = [
   { id: "1", title: "Modern 2-Bed Flat near IUT", location: "Board Bazar, Gazipur", price: 14000, beds: 2, baths: 2, floor: "4th", imageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?q=80&w=800&auto=format&fit=crop", aiScore: 94, distanceToUniversity: "5 min to IUT", isVerified: true },
@@ -27,6 +31,44 @@ export default function StudentRentPage() {
   const [price, setPrice] = useState(12000);
   const [aiScore, setAiScore] = useState(85);
   const [filters, setFilters] = useState(ACTIVE_FILTERS);
+  const [activeListingId, setActiveListingId] = useState<string | null>(null);
+
+  // Map MOCK_RESULTS to match the Listing type for the map
+  const mockCoords: Record<string, { lat: number; lng: number }> = {
+    "1": { lat: 23.9450, lng: 90.3800 }, // Board Bazar
+    "2": { lat: 23.8050, lng: 90.3600 }, // Mirpur-2
+    "3": { lat: 23.8150, lng: 90.4300 }, // Bashundhara
+    "4": { lat: 23.7500, lng: 90.3700 }, // Dhanmondi
+    "5": { lat: 23.8750, lng: 90.3900 }, // Uttara
+    "6": { lat: 23.7940, lng: 90.4000 }, // Banani
+  };
+
+  const filteredResults: Listing[] = MOCK_RESULTS.map((m) => ({
+    id: m.id,
+    landlord_id: "mock_landlord",
+    title_en: m.title,
+    title_bn: null,
+    description_en: null,
+    description_bn: null,
+    area: m.location,
+    address: m.location,
+    lat: mockCoords[m.id].lat,
+    lng: mockCoords[m.id].lng,
+    rent_bdt: m.price,
+    rooms: m.beds,
+    bathrooms: m.baths,
+    floor: null,
+    furnishing: "semi",
+    type: "student",
+    for_gender: "any",
+    utilities_included: false,
+    photos: [m.imageUrl],
+    is_available: true,
+    trust_score: m.aiScore,
+    trust_score_breakdown: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }));
 
   const removeFilter = (id: string) => {
     setFilters(filters.filter(f => f.id !== id));
@@ -184,7 +226,11 @@ export default function StudentRentPage() {
             >
               {MOCK_RESULTS.map((prop) => (
                 <motion.div key={prop.id} variants={fadeUp}>
-                  <PropertyCard {...prop} />
+                  <PropertyCard 
+                    {...prop} 
+                    onMouseEnter={() => setActiveListingId(prop.id)}
+                    onMouseLeave={() => setActiveListingId(null)}
+                  />
                 </motion.div>
               ))}
             </motion.div>
@@ -193,21 +239,22 @@ export default function StudentRentPage() {
               {/* List alongside map */}
               <div className="w-[40%] overflow-y-auto custom-scrollbar pr-2 space-y-4">
                 {MOCK_RESULTS.map((prop) => (
-                  <PropertyCard key={prop.id} {...prop} />
+                  <PropertyCard 
+                    key={prop.id} 
+                    {...prop} 
+                    onMouseEnter={() => setActiveListingId(prop.id)}
+                    onMouseLeave={() => setActiveListingId(null)}
+                  />
                 ))}
               </div>
-              {/* Map Placeholder */}
-              <div className="flex-grow bg-[var(--bg-muted)] rounded-xl relative overflow-hidden flex items-center justify-center">
-                 <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(42,125,70,0.5) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
-                 <div className="relative z-10 text-center text-[var(--forest)] flex flex-col items-center">
-                   <MapIcon size={48} className="mb-4 opacity-50" />
-                   <p className="font-medium">Mapbox Map Integration Here</p>
-                   <p className="text-sm text-[var(--slate)]">Requires mapbox-gl token</p>
-                 </div>
-                 
-                 {/* Mock Map Markers */}
-                 <div className="absolute top-[30%] left-[40%] bg-[var(--emerald)] text-white text-sm font-bold py-1 px-2 rounded-full shadow-lg bangla transform hover:scale-110 cursor-pointer transition-transform">৳14,000</div>
-                 <div className="absolute top-[50%] left-[60%] bg-[var(--emerald)] text-white text-sm font-bold py-1 px-2 rounded-full shadow-lg bangla transform hover:scale-110 cursor-pointer transition-transform">৳7,500</div>
+              {/* Map */}
+              <div className="flex-grow rounded-xl overflow-hidden relative border border-[var(--foam)]">
+                <ListingMap 
+                  listings={filteredResults}
+                  selectedUniversityId="iut"
+                  activeListingId={activeListingId}
+                  onSelectListing={() => {}}
+                />
               </div>
             </div>
           )}

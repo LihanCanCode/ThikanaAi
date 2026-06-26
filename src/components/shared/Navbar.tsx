@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { User } from "@supabase/supabase-js";
-import { Home, Search, PlusCircle, LayoutDashboard, Menu, X, Users, LogOut, ChevronDown, Bell, CheckCircle, XCircle, Loader2, GraduationCap, Phone } from "lucide-react";
+import { Home, Search, PlusCircle, LayoutDashboard, Menu, X, Users, LogOut, ChevronDown, Bell, CheckCircle, XCircle, Loader2, GraduationCap, Phone, Wrench } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { logout } from "@/app/auth/actions";
 import { getPendingFlicks } from "@/app/student/flatmate-actions";
@@ -379,7 +379,9 @@ export default function Navbar() {
   const [profileRole, setProfileRole] = useState<UserRole | null>(null);
   const [profileName, setProfileName] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -408,6 +410,15 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [userMenuOpen]);
 
+  useEffect(() => {
+    if (!toolsMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(event.target as Node)) setToolsMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [toolsMenuOpen]);
+
   const fullName = profileName ?? (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "User";
   const email = user?.email ?? "";
   const role = profileRole ?? (user?.user_metadata?.role as UserRole | undefined) ?? "student";
@@ -435,14 +446,61 @@ export default function Navbar() {
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="desktop-nav">
           <NavLink href="/listings" icon={<Search size={15} />}>Student Rent</NavLink>
           <NavLink href="/listings/family" icon={<Search size={15} />}>Family Rent</NavLink>
-          <NavLink href="/student/feed" icon={<Users size={15} />}>Find Flatmate</NavLink>
+          <NavLink href="/flatmates" icon={<Users size={15} />}>Find Flatmates</NavLink>
           <NavLink href="/listings/new" icon={<PlusCircle size={15} />}>List Property</NavLink>
           <NavLink href="/landlord/dashboard" icon={<LayoutDashboard size={15} />}>Dashboard</NavLink>
           <NavLink href="/student/finance" icon={<span style={{ fontSize: "15px" }}>💰</span>}>Finance</NavLink>
+          
+          {/* Tools Menu */}
+          <div ref={toolsMenuRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              onClick={() => setToolsMenuOpen((prev) => !prev)}
+              style={{
+                display: "flex", alignItems: "center", gap: "5px", padding: "0.4rem 0.75rem", 
+                borderRadius: "var(--radius-full)", color: "var(--text-secondary)", 
+                background: toolsMenuOpen ? "var(--bg-subtle)" : "transparent",
+                border: "none", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500, transition: "all 0.15s ease"
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-subtle)"; e.currentTarget.style.color = "var(--primary)"; }}
+              onMouseLeave={(e) => { if(!toolsMenuOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-secondary)"; } }}
+            >
+              <Wrench size={15} /> Tools <ChevronDown size={12} style={{ transform: toolsMenuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s ease" }} />
+            </button>
+            {toolsMenuOpen && (
+              <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, minWidth: "180px", background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-md)", padding: "0.5rem", zIndex: 200 }}>
+                <Link href="/listings/estimate" onClick={() => setToolsMenuOpen(false)}
+                  style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.65rem 0.85rem", borderRadius: "var(--radius-md)", color: "var(--text-primary)", textDecoration: "none", fontSize: "0.875rem", fontWeight: 500 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-subtle)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  Rent Estimator
+                </Link>
+              </div>
+            )}
+          </div>
+
           <div style={{ width: 1, height: 24, background: "var(--border)", margin: "0 4px" }} />
 
           {user ? (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {/* Alerts Bell */}
+              <Link href="/alerts" aria-label="Smart Match Alerts"
+                style={{
+                  position: "relative",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 40, height: 40, borderRadius: "50%",
+                  border: "1px solid var(--border)",
+                  background: "var(--bg-surface)",
+                  cursor: "pointer", color: "var(--text-secondary)", transition: "all 0.15s ease"
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-subtle)"; e.currentTarget.style.color = "var(--primary)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-surface)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
+              >
+                <Bell size={18} />
+                <div style={{ position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: "50%", background: "#ef4444", border: "2px solid var(--bg-surface)" }} />
+              </Link>
+
               {/* 🔔 Notification Bell — only for students with a profile */}
               {(role === "student" || !role) && <NotificationBell userId={user.id} />}
 
@@ -515,10 +573,11 @@ export default function Navbar() {
         <div style={{ background: "var(--bg-surface)", borderTop: "1px solid var(--border)", padding: "1rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           <MobileNavLink href="/listings" onClick={() => setOpen(false)}>🎓 Student Rent</MobileNavLink>
           <MobileNavLink href="/listings/family" onClick={() => setOpen(false)}>🏠 Family Rent</MobileNavLink>
-          <MobileNavLink href="/student/feed" onClick={() => setOpen(false)}>🤝 Find Flatmate</MobileNavLink>
+          <MobileNavLink href="/flatmates" onClick={() => setOpen(false)}>🤝 Find Flatmates</MobileNavLink>
           <MobileNavLink href="/listings/new" onClick={() => setOpen(false)}>➕ List Property</MobileNavLink>
           <MobileNavLink href="/landlord/dashboard" onClick={() => setOpen(false)}>📊 Dashboard</MobileNavLink>
           <MobileNavLink href="/student/finance" onClick={() => setOpen(false)}>💰 Finance Tools</MobileNavLink>
+          <MobileNavLink href="/listings/estimate" onClick={() => setOpen(false)}>🧮 Rent Estimator</MobileNavLink>
           <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "0.5rem 0" }} />
 
           {user ? (
@@ -532,6 +591,7 @@ export default function Navbar() {
                   <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{email}</div>
                 </div>
               </div>
+              <MobileNavLink href="/alerts" onClick={() => setOpen(false)}>🔔 My Alerts</MobileNavLink>
               <MobileNavLink href={dashboardHref} onClick={() => setOpen(false)}>📊 My Dashboard</MobileNavLink>
               <form action={logout}>
                 <button type="submit" className="btn btn-outline" style={{ width: "100%", justifyContent: "center", color: "#DC2626", borderColor: "#FECACA" }}>Sign Out</button>

@@ -15,7 +15,7 @@ interface GeneratedListing {
   description_bn: string;
 }
 
-const labelStyle: React.CSSProperties = {
+const labelStyle: any = {
   fontSize: "0.85rem",
   fontWeight: 600,
   color: "var(--text-secondary)",

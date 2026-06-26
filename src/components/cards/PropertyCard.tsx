@@ -18,6 +18,8 @@ interface PropertyCardProps {
   aiScore: number;
   distanceToUniversity?: string;
   isVerified?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export function PropertyCard({
@@ -31,7 +33,9 @@ export function PropertyCard({
   imageUrl,
   aiScore,
   distanceToUniversity,
-  isVerified
+  isVerified,
+  onMouseEnter,
+  onMouseLeave
 }: PropertyCardProps) {
   
   const isHighTrust = aiScore >= 85;
@@ -39,6 +43,8 @@ export function PropertyCard({
   return (
     <motion.div
       whileHover={{ y: -6, transition: springTransition }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className="group relative bg-white rounded-[16px] border border-[var(--foam)] shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-lg)] transition-shadow duration-350 overflow-hidden flex flex-col"
     >
       {/* Image Container */}
