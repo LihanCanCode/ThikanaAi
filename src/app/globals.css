@@ -1,178 +1,130 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap');
 
 @import "tailwindcss";
+@source "../components";
+@source "../app";
+@source "../lib";
+
 @import "mapbox-gl/dist/mapbox-gl.css";
 
 
+
 :root {
-  /* ── Thikana Design Tokens ── */
+  /* Brand Greens */
+  --forest:     #0F2D1F;   /* primary headings, nav text */
+  --emerald:    #166534;   /* primary CTAs, active states */
+  --jade:       #16A34A;   /* hover states, links */
+  --fern:       #22C55E;   /* success, confirmation */
+  --mint:       #BBF7D0;   /* chip backgrounds, badges */
+  --foam:       #DCFCE7;   /* card backgrounds, alternating sections */
+  --mist:       #F0FDF4;   /* page background, lightest tint */
 
-  /* Background */
-  --bg-base:       #F8FAF7;
-  --bg-surface:    #FFFFFF;
-  --bg-subtle:     #EDF4EA;
-  --bg-muted:      #E2EDE0;
+  /* Neutrals */
+  --white:      #FFFFFF;
+  --pearl:      #F9FAFB;
+  --cloud:      #F3F4F6;
+  --stone:      #9CA3AF;
+  --slate:      #4B5563;
+  --ink:        #111827;
 
-  /* Primary — Forest Green */
-  --primary:       #2A7D46;
-  --primary-hover: #236639;
-  --primary-light: #D1EAD9;
-  --primary-xlight:#EDF7F0;
-
-  /* Accent — Golden Amber */
-  --accent:        #F59B2B;
-  --accent-hover:  #E08A1A;
-  --accent-light:  #FEF3D7;
-
-  /* Text */
-  --text-primary:  #1C2B1E;
-  --text-secondary:#3D5240;
-  --text-muted:    #6B8070;
-  --text-placeholder:#9BB0A0;
-
-  /* Status */
-  --success:       #16A34A;
-  --warning:       #D97706;
-  --danger:        #DC2626;
-  --info:          #0284C7;
-
-  /* Border */
-  --border:        #D4E4D0;
-  --border-strong: #A8C4A2;
+  /* Accent */
+  --gold:       #CA8A04;   /* verified badge, trust signal only */
+  --amber-soft: #FEF3C7;   /* gold badge background */
 
   /* Shadows */
-  --shadow-sm:     0 1px 3px rgba(42, 125, 70, 0.08);
-  --shadow-md:     0 4px 16px rgba(42, 125, 70, 0.10);
-  --shadow-lg:     0 8px 32px rgba(42, 125, 70, 0.14);
-  --shadow-card:   0 2px 8px rgba(28, 43, 30, 0.06), 0 1px 2px rgba(28, 43, 30, 0.04);
+  --shadow-sm:  0 1px 3px rgba(15,45,31,0.08), 0 1px 2px rgba(15,45,31,0.04);
+  --shadow-md:  0 4px 16px rgba(15,45,31,0.10), 0 2px 6px rgba(15,45,31,0.06);
+  --shadow-lg:  0 16px 48px rgba(15,45,31,0.14), 0 4px 12px rgba(15,45,31,0.08);
+  --shadow-xl:  0 32px 80px rgba(15,45,31,0.18);
 
-  /* Radius */
-  --radius-sm:     8px;
-  --radius-md:     12px;
-  --radius-lg:     16px;
-  --radius-xl:     24px;
-  --radius-full:   9999px;
+  /* Motion */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  
+  /* Legacy mapping for previous components (until replaced) */
+  --bg-surface: #FFFFFF;
+  --bg-subtle: var(--mist);
+  --bg-muted: var(--foam);
+  --primary: var(--emerald);
+  --primary-hover: var(--jade);
+  --primary-light: var(--mint);
+  --primary-xlight: var(--mist);
+  --text-primary: var(--ink);
+  --text-secondary: var(--slate);
+  --text-muted: var(--stone);
+  --text-placeholder: #D1D5DB;
+  --border: #E5E7EB;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
 }
 
-/* ── Base Reset ── */
 *, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+  scrollbar-width: thin; 
+  scrollbar-color: var(--mint) var(--mist);
 }
 
 html {
-  scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background-color: var(--bg-base);
-  color: var(--text-primary);
-  font-family: 'Inter', 'Hind Siliguri', sans-serif;
-  line-height: 1.6;
+  font-family: 'Inter', sans-serif; 
+  color: var(--ink); 
+  background: var(--mist);
   min-height: 100vh;
   overflow-x: hidden;
   overflow-y: auto;
 }
 
-/* ── Typography ── */
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--text-primary);
+/* Custom Scrollbar CSS */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--mist); }
+::-webkit-scrollbar-thumb {
+  background: var(--mint);
+  border-radius: 999px;
+  transition: background 0.2s;
 }
+::-webkit-scrollbar-thumb:hover { background: var(--jade); }
+
+/* Typography Scale */
+.display-2xl { font-family: 'Playfair Display', serif; font-size: clamp(3rem, 7vw, 5.5rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; }
+.display-xl  { font-family: 'Playfair Display', serif; font-size: clamp(2.2rem, 5vw, 4rem);  font-weight: 700; line-height: 1.1;  letter-spacing: -0.02em; }
+.display-lg  { font-family: 'Playfair Display', serif; font-size: clamp(1.6rem, 3vw, 2.5rem); font-weight: 600; line-height: 1.2; }
+.heading     { font-family: 'Inter', sans-serif; font-size: 1.125rem; font-weight: 600; }
+.body-lg     { font-family: 'Inter', sans-serif; font-size: 1.0625rem; line-height: 1.7; }
+.body        { font-family: 'Inter', sans-serif; font-size: 0.9375rem; line-height: 1.65; }
+.caption     { font-family: 'Inter', sans-serif; font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.04em; }
+.overline    { font-family: 'Inter', sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--jade); }
 
 .bangla {
   font-family: 'Hind Siliguri', sans-serif;
+  font-size: 1.05em;
 }
 
-/* ── Utility Classes ── */
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
+/* Reusable utility for link hover underline */
+.hover-underline {
+  position: relative;
+}
+.hover-underline::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  transform: scaleX(0);
+  height: 2px;
+  bottom: -2px;
+  left: 0;
+  background-color: currentColor;
+  transform-origin: bottom left;
+  transition: transform 0.25s ease-out;
+}
+.hover-underline:hover::after {
+  transform: scaleX(1);
 }
 
-/* Cards */
-.card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-.card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
-}
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  font-size: 0.9rem;
-  border-radius: var(--radius-full);
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0.6rem 1.4rem;
-  text-decoration: none;
-}
-.btn-primary {
-  background: var(--primary);
-  color: #fff;
-}
-.btn-primary:hover {
-  background: var(--primary-hover);
-  box-shadow: 0 4px 12px rgba(42, 125, 70, 0.3);
-  transform: translateY(-1px);
-}
-.btn-outline {
-  background: transparent;
-  color: var(--primary);
-  border: 1.5px solid var(--primary);
-}
-.btn-outline:hover {
-  background: var(--primary-xlight);
-}
-.btn-accent {
-  background: var(--accent);
-  color: #fff;
-}
-.btn-accent:hover {
-  background: var(--accent-hover);
-  box-shadow: 0 4px 12px rgba(245, 155, 43, 0.35);
-  transform: translateY(-1px);
-}
-.btn-ghost {
-  background: transparent;
-  color: var(--text-secondary);
-}
-.btn-ghost:hover {
-  background: var(--bg-subtle);
-  color: var(--primary);
-}
-
-/* Badge */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 10px;
-  border-radius: var(--radius-full);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-.badge-green  { background: var(--primary-light); color: var(--primary); }
-.badge-amber  { background: var(--accent-light);  color: var(--accent-hover); }
-.badge-muted  { background: var(--bg-muted);       color: var(--text-muted); }
-
-/* Input */
+/* Legacy input class for old pages until fully replaced */
 .input {
   width: 100%;
   padding: 0.65rem 1rem;
@@ -186,60 +138,15 @@ h1, h2, h3, h4, h5, h6 {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(42, 125, 70, 0.12);
+  border-color: var(--emerald);
+  box-shadow: 0 0 0 3px rgba(22,163,74,0.15);
 }
 .input::placeholder {
   color: var(--text-placeholder);
 }
 
-/* Divider */
-.divider {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 1.5rem 0;
+/* Base link reset */
+a {
+  color: inherit;
+  text-decoration: none;
 }
-
-/* Trust Score colors */
-.trust-high   { color: var(--success); }
-.trust-medium { color: var(--warning); }
-.trust-low    { color: var(--danger); }
-
-/* Animations */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes pulse-green {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(42, 125, 70, 0.4); }
-  50%       { box-shadow: 0 0 0 8px rgba(42, 125, 70, 0); }
-}
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.animate-fade-in-up { animation: fadeInUp 0.5s ease forwards; }
-.animate-fade-in    { animation: fadeIn 0.4s ease forwards; }
-
-/* Skeleton loader */
-.skeleton {
-  background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--bg-muted) 50%, var(--bg-subtle) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: var(--radius-sm);
-}
-
-/* Scrollbar */
-::-webkit-scrollbar        { width: 6px; height: 6px; }
-::-webkit-scrollbar-track  { background: var(--bg-subtle); }
-::-webkit-scrollbar-thumb  { background: var(--border-strong); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
-
-/* Section spacing */
-.section { padding: 5rem 0; }
-.section-sm { padding: 3rem 0; }
