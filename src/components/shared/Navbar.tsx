@@ -11,6 +11,9 @@ import { getPendingFlicks } from "@/app/student/flatmate-actions";
 import type { PendingFlick } from "@/app/student/flatmate-actions";
 import type { UserRole } from "@/types";
 import { UNIVERSITIES } from "@/lib/utils";
+import { getNotifications, markNotificationsRead } from "@/app/actions/chat-actions";
+import type { Notification } from "@/app/actions/chat-actions";
+import { MessageCircle } from "lucide-react";
 
 function getInitials(name: string) {
   return name.split(" ").filter(Boolean).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -372,6 +375,109 @@ function NotificationBell({ userId }: { userId: string }) {
   );
 }
 
+// ── Chat Notifications ────────────────────────────────────────────
+function ChatNotifications({ userId }: { userId: string }) {
+  const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const loadNotifications = useCallback(async () => {
+    const data = await getNotifications();
+    setNotifications(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    // Mark as read when opened
+    markNotificationsRead();
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  return (
+    <div ref={menuRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => { setOpen((p) => !p); setNotifications(prev => prev.map(n => ({...n, read: true}))) }}
+        aria-label="Messages"
+        style={{
+          position: "relative",
+          display: "flex", alignItems: "center", justifyCenter: "center",
+          width: 40, height: 40, borderRadius: "50%",
+          border: "1px solid var(--border)",
+          background: open ? "var(--primary-xlight)" : "var(--bg-surface)",
+          cursor: "pointer", transition: "all 0.15s ease",
+          justifyContent: "center"
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-subtle)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = open ? "var(--primary-xlight)" : "var(--bg-surface)")}
+      >
+        <MessageCircle size={17} color={open ? "var(--primary)" : "var(--text-secondary)"} />
+        {unreadCount > 0 && (
+          <span style={{
+            position: "absolute", top: 5, right: 5,
+            width: 8, height: 8, borderRadius: "50%",
+            background: "var(--accent)", border: "2px solid #fff",
+          }} />
+        )}
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", right: 0, top: "calc(100% + 10px)",
+          width: "320px", background: "var(--bg-surface)",
+          border: "1px solid var(--border)", borderRadius: "var(--radius-lg)",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.14)",
+          zIndex: 300, overflow: "hidden",
+        }}>
+          <div style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "7px" }}>
+              <MessageCircle size={15} style={{ color: "var(--primary)" }} /> Chat & Connections
+            </span>
+          </div>
+
+          <div style={{ maxHeight: "350px", overflowY: "auto" }}>
+            {loading ? (
+              <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
+                <Loader2 size={20} style={{ animation: "spin 1s linear infinite", margin: "0 auto" }} />
+              </div>
+            ) : notifications.length === 0 ? (
+              <div style={{ padding: "2rem 1rem", textAlign: "center" }}>
+                <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 500 }}>No messages yet</div>
+              </div>
+            ) : (
+              notifications.map((notif) => (
+                <Link href={notif.link || "/chat"} onClick={() => setOpen(false)} key={notif.id} style={{ display: "block", padding: "1rem", borderBottom: "1px solid var(--border)", textDecoration: "none", background: notif.read ? "transparent" : "var(--primary-xlight)" }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text-primary)", marginBottom: "4px" }}>{notif.title}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>{notif.message}</div>
+                </Link>
+              ))
+            )}
+          </div>
+          <div style={{ padding: "0.7rem 1rem", borderTop: "1px solid var(--border)", background: "var(--bg-subtle)" }}>
+            <Link href="/chat" onClick={() => setOpen(false)} style={{ fontSize: "0.78rem", color: "var(--primary)", fontWeight: 700, textDecoration: "none" }}>
+              Open Chat Messages →
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Navbar ──────────────────────────────────────────────────
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -503,6 +609,9 @@ export default function Navbar() {
 
               {/* 🔔 Notification Bell — only for students with a profile */}
               {(role === "student" || !role) && <NotificationBell userId={user.id} />}
+              
+              {/* 💬 Chat Notifications */}
+              <ChatNotifications userId={user.id} />
 
               {/* User Menu */}
               <div ref={menuRef} style={{ position: "relative" }}>

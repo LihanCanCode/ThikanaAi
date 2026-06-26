@@ -27,7 +27,13 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     ],
     is_available: true,
     trust_score: 82,
-    trust_score_breakdown: null,
+    trust_score_breakdown: {
+      price: { score: 25, note: "Rent is within expected range." },
+      photos: { score: 20, note: "Excellent photo evidence." },
+      description: { score: 15, note: "Clear description provided." },
+      duplicate: { score: 10, note: "Passed NLP duplicate check." },
+      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+    },
     created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -56,7 +62,13 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     ],
     is_available: true,
     trust_score: 91,
-    trust_score_breakdown: null,
+    trust_score_breakdown: {
+      price: { score: 25, note: "Rent is within expected range." },
+      photos: { score: 20, note: "Excellent photo evidence." },
+      description: { score: 15, note: "Clear description provided." },
+      duplicate: { score: 10, note: "Passed NLP duplicate check." },
+      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+    },
     created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -85,7 +97,13 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     ],
     is_available: true,
     trust_score: 78,
-    trust_score_breakdown: null,
+    trust_score_breakdown: {
+      price: { score: 25, note: "Rent is within expected range." },
+      photos: { score: 20, note: "Excellent photo evidence." },
+      description: { score: 15, note: "Clear description provided." },
+      duplicate: { score: 10, note: "Passed NLP duplicate check." },
+      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+    },
     created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -113,7 +131,13 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     ],
     is_available: true,
     trust_score: 62,
-    trust_score_breakdown: null,
+    trust_score_breakdown: {
+      price: { score: 25, note: "Rent is within expected range." },
+      photos: { score: 20, note: "Excellent photo evidence." },
+      description: { score: 15, note: "Clear description provided." },
+      duplicate: { score: 10, note: "Passed NLP duplicate check." },
+      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+    },
     created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -142,7 +166,13 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     ],
     is_available: true,
     trust_score: 88,
-    trust_score_breakdown: null,
+    trust_score_breakdown: {
+      price: { score: 25, note: "Rent is within expected range." },
+      photos: { score: 20, note: "Excellent photo evidence." },
+      description: { score: 15, note: "Clear description provided." },
+      duplicate: { score: 10, note: "Passed NLP duplicate check." },
+      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+    },
     created_at: new Date(Date.now() - 4 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -170,7 +200,13 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     ],
     is_available: true,
     trust_score: 55,
-    trust_score_breakdown: null,
+    trust_score_breakdown: {
+      price: { score: 25, note: "Rent is within expected range." },
+      photos: { score: 20, note: "Excellent photo evidence." },
+      description: { score: 15, note: "Clear description provided." },
+      duplicate: { score: 10, note: "Passed NLP duplicate check." },
+      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+    },
     created_at: new Date(Date.now() - 7 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -199,7 +235,13 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     ],
     is_available: true,
     trust_score: 95,
-    trust_score_breakdown: null,
+    trust_score_breakdown: {
+      price: { score: 25, note: "Rent is within expected range." },
+      photos: { score: 20, note: "Excellent photo evidence." },
+      description: { score: 15, note: "Clear description provided." },
+      duplicate: { score: 10, note: "Passed NLP duplicate check." },
+      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+    },
     created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -227,7 +269,13 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     ],
     is_available: true,
     trust_score: 73,
-    trust_score_breakdown: null,
+    trust_score_breakdown: {
+      price: { score: 25, note: "Rent is within expected range." },
+      photos: { score: 20, note: "Excellent photo evidence." },
+      description: { score: 15, note: "Clear description provided." },
+      duplicate: { score: 10, note: "Passed NLP duplicate check." },
+      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+    },
     created_at: new Date(Date.now() - 6 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },

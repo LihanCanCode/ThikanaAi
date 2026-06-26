@@ -1,28 +1,27 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/shared/Navbar";
 import { DHAKA_AREAS, UNIVERSITIES } from "@/lib/utils";
 import { fadeUpStagger, fadeUp } from "@/lib/animations";
-import { Users, Filter, Check, MapPin } from "lucide-react";
+import { Users, Filter, Check, MapPin, Loader2 } from "lucide-react";
+import { getFlatmateProfiles, postFlatmateProfile } from "@/app/flatmate-actions";
+import { sendConnectionRequest } from "@/app/actions/chat-actions";
+import { toast } from "react-hot-toast";
 
-// Mock data
-const MOCK_SEEKERS = [
-  { id: "1", name: "Tanvir Ahmed", university: "IUT", budget: 6000, 
-    gender: "male", area_pref: "Board Bazar", lifestyle: ["Early riser", "Non-smoker", "Vegetarian ok"],
-    avatar: "T", bio: "CSE final year. Need quiet environment for thesis." },
-  { id: "2", name: "Priya Das", university: "BRACU", budget: 8000,
-    gender: "female", area_pref: "Mirpur-2", lifestyle: ["Night owl", "Non-smoker"],
-    avatar: "P", bio: "Looking for 2 flatmates, already have a room." },
-  { id: "3", name: "Rafiq Islam", university: "DIU", budget: 5000,
-    gender: "male", area_pref: "Dhanmondi", lifestyle: ["Non-smoker"],
-    avatar: "R", bio: "First year student, new to Dhaka." },
-];
+// Only real data is used now
 
 const LIFESTYLE_OPTIONS = ["Early riser", "Night owl", "Non-smoker", "Vegetarian ok", "Pets ok", "Quiet study environment"];
 
 export default function FlatmatesPage() {
+  const [seekers, setSeekers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPosted, setIsPosted] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
+  const [connectingTo, setConnectingTo] = useState<string | null>(null);
+  const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
+
   const [formData, setFormData] = useState({
     name: "",
     university: UNIVERSITIES[0].short_name,
@@ -36,6 +35,37 @@ export default function FlatmatesPage() {
   const [filterUni, setFilterUni] = useState("All");
   const [maxBudget, setMaxBudget] = useState(15000);
 
+  // Load from DB
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const dbProfiles = await getFlatmateProfiles();
+        if (dbProfiles && dbProfiles.length > 0) {
+          const mapped = dbProfiles.map(p => ({
+            id: p.id,
+            name: p.name,
+            university: p.university,
+            budget: p.budget_max,
+            gender: p.profile_data?.gender || "any",
+            area_pref: p.preferred_areas?.[0] || DHAKA_AREAS[0],
+            lifestyle: p.profile_data?.lifestyle || [],
+            avatar: p.profile_data?.avatar || p.name.charAt(0).toUpperCase(),
+            bio: p.profile_data?.bio || ""
+          }));
+          setSeekers(mapped);
+        } else {
+          setSeekers([]);
+        }
+      } catch (error) {
+        console.error("Failed to load profiles", error);
+        setSeekers([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
   const toggleLifestyle = (opt: string) => {
     setFormData(prev => ({
       ...prev,
@@ -46,13 +76,13 @@ export default function FlatmatesPage() {
   };
 
   const sortedSeekers = useMemo(() => {
-    return MOCK_SEEKERS.map(seeker => {
+    return seekers.map(seeker => {
       let score = 0;
       if (formData.university === seeker.university) score += 40;
       if (Math.abs(formData.budget - seeker.budget) <= 2000) score += 30;
       if (formData.area_pref === seeker.area_pref) score += 20;
       
-      const overlap = seeker.lifestyle.filter(l => formData.lifestyle.includes(l)).length;
+      const overlap = seeker.lifestyle.filter((l: string) => formData.lifestyle.includes(l)).length;
       if (overlap >= 1) score += 10;
       
       return { ...seeker, score };
@@ -60,7 +90,58 @@ export default function FlatmatesPage() {
     .filter(s => filterUni === "All" || s.university === filterUni)
     .filter(s => s.budget <= maxBudget)
     .sort((a, b) => b.score - a.score);
-  }, [formData, filterUni, maxBudget]);
+  }, [formData, filterUni, maxBudget, seekers]);
+
+  const handlePostSubmit = async () => {
+    if (!formData.name.trim()) return;
+    setIsPosting(true);
+    
+    try {
+      const res = await postFlatmateProfile(formData);
+      if (res.success && res.profile) {
+        const newSeeker = {
+          id: res.profile.id,
+          name: res.profile.name,
+          university: res.profile.university,
+          budget: res.profile.budget_max,
+          gender: res.profile.profile_data?.gender || "any",
+          area_pref: res.profile.preferred_areas?.[0] || formData.area_pref,
+          lifestyle: res.profile.profile_data?.lifestyle || [],
+          avatar: res.profile.profile_data?.avatar || formData.name.charAt(0).toUpperCase(),
+          bio: res.profile.profile_data?.bio || ""
+        };
+        
+        // Prepend to top of list instantly
+        setSeekers([newSeeker, ...seekers]);
+        setIsPosted(true);
+        setTimeout(() => setIsPosted(false), 3000);
+      }
+    } catch (error) {
+      console.error("Submit error", error);
+    } finally {
+      setIsPosting(false);
+    }
+  };
+
+  const handleConnect = async (profileId: string) => {
+    setConnectingTo(profileId);
+    try {
+      const res = await sendConnectionRequest(profileId);
+      if (res.error) {
+        toast.error(res.error);
+        if (res.error === "You must be logged in to connect with someone.") {
+          window.location.href = "/auth/login";
+        }
+      } else {
+        toast.success("Connection request sent! They will be notified.");
+        setConnectedIds(prev => new Set([...prev, profileId]));
+      }
+    } catch (e) {
+      toast.error("Failed to send request.");
+    } finally {
+      setConnectingTo(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[var(--mist)] flex flex-col">
@@ -138,8 +219,14 @@ export default function FlatmatesPage() {
                   <textarea value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} maxLength={150} rows={3} placeholder="A bit about yourself..." className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none text-sm font-medium text-[var(--forest)] transition-colors resize-none" />
                 </div>
 
-                <button type="button" className="w-full bg-[var(--forest)] hover:bg-[var(--jade)] text-white py-3 rounded-xl font-bold text-sm transition-colors mt-2">
-                  Find Matches
+                <button 
+                  type="button" 
+                  onClick={handlePostSubmit}
+                  disabled={isPosting}
+                  className={`w-full text-white py-3 rounded-xl font-bold text-sm transition-colors mt-2 flex justify-center items-center gap-2 ${isPosted ? 'bg-green-600' : isPosting ? 'bg-[var(--stone)] opacity-70 cursor-not-allowed' : 'bg-[var(--forest)] hover:bg-[var(--jade)]'}`}
+                >
+                  {isPosting && <Loader2 size={16} className="animate-spin" />}
+                  {isPosted ? "✓ Profile Posted!" : isPosting ? "Posting..." : "Post & Find Matches"}
                 </button>
               </div>
             </div>
@@ -164,66 +251,80 @@ export default function FlatmatesPage() {
               </div>
             </div>
 
-            <motion.div variants={fadeUpStagger} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <AnimatePresence mode="popLayout">
-                {sortedSeekers.map(s => (
-                  <motion.div key={s.id} variants={fadeUp} layout className="bg-white rounded-2xl p-5 border border-[var(--foam)] shadow-[var(--shadow-sm)] flex flex-col hover:border-[var(--emerald)] transition-colors">
-                    
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center font-bold text-lg">
-                          {s.avatar}
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-[var(--forest)] text-base">{s.name}</h3>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="px-2 py-0.5 bg-[var(--mint)] text-[var(--forest)] rounded text-[10px] font-bold tracking-wide">{s.university}</span>
-                            <span className="text-xs text-[var(--slate)] capitalize">{s.gender}</span>
+            {loading ? (
+              <div className="flex items-center justify-center py-20 text-[var(--slate)]">
+                <Loader2 className="animate-spin mr-2" size={24} /> Loading profiles...
+              </div>
+            ) : (
+              <motion.div variants={fadeUpStagger} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <AnimatePresence mode="popLayout">
+                  {sortedSeekers.map(s => (
+                    <motion.div key={s.id} variants={fadeUp} layout className="bg-white rounded-2xl p-5 border border-[var(--foam)] shadow-[var(--shadow-sm)] flex flex-col hover:border-[var(--emerald)] transition-colors">
+                      
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center font-bold text-lg">
+                            {s.avatar}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-[var(--forest)] text-base">{s.name}</h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="px-2 py-0.5 bg-[var(--mint)] text-[var(--forest)] rounded text-[10px] font-bold tracking-wide">{s.university}</span>
+                              <span className="text-xs text-[var(--slate)] capitalize">{s.gender}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      
-                      {/* Compatibility Score Circle */}
-                      <div className="flex flex-col items-center">
-                        <div className="w-10 h-10 rounded-full border-4 flex items-center justify-center text-xs font-bold" style={{
-                          borderColor: s.score >= 80 ? 'var(--success)' : s.score >= 50 ? 'var(--warning)' : 'var(--border)',
-                          color: s.score >= 80 ? 'var(--success)' : s.score >= 50 ? 'var(--warning)' : 'var(--text-muted)'
-                        }}>
-                          {s.score}%
+                        
+                        {/* Compatibility Score Circle */}
+                        <div className="flex flex-col items-center">
+                          <div className="w-10 h-10 rounded-full border-4 flex items-center justify-center text-xs font-bold" style={{
+                            borderColor: s.score >= 80 ? 'var(--success)' : s.score >= 50 ? 'var(--warning)' : 'var(--border)',
+                            color: s.score >= 80 ? 'var(--success)' : s.score >= 50 ? 'var(--warning)' : 'var(--text-muted)'
+                          }}>
+                            {s.score}%
+                          </div>
+                          <span className="text-[9px] font-bold text-[var(--slate)] uppercase mt-1">Match</span>
                         </div>
-                        <span className="text-[9px] font-bold text-[var(--slate)] uppercase mt-1">Match</span>
                       </div>
-                    </div>
 
-                    <div className="flex items-center justify-between text-sm mb-3">
-                      <div className="font-bold text-[var(--emerald)] bangla">৳{s.budget.toLocaleString()}</div>
-                      <div className="flex items-center gap-1 text-[var(--slate)] font-medium text-xs">
-                        <MapPin size={12} /> {s.area_pref}
+                      <div className="flex items-center justify-between text-sm mb-3">
+                        <div className="font-bold text-[var(--emerald)] bangla">৳{s.budget.toLocaleString()}</div>
+                        <div className="flex items-center gap-1 text-[var(--slate)] font-medium text-xs">
+                          <MapPin size={12} /> {s.area_pref}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {s.lifestyle.map((l, i) => (
-                        <span key={i} className="px-2 py-1 bg-[var(--mist)] text-[var(--stone)] rounded-full text-[10px] font-semibold">{l}</span>
-                      ))}
-                    </div>
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {s.lifestyle.map((l: string, i: number) => (
+                          <span key={i} className="px-2 py-1 bg-[var(--mist)] text-[var(--stone)] rounded-full text-[10px] font-semibold">{l}</span>
+                        ))}
+                      </div>
 
-                    <p className="text-xs text-[var(--slate)] leading-relaxed flex-grow mb-4 bg-[var(--bg-subtle)] p-2 rounded-lg italic">
-                      "{s.bio}"
-                    </p>
+                      <p className="text-xs text-[var(--slate)] leading-relaxed flex-grow mb-4 bg-[var(--bg-subtle)] p-2 rounded-lg italic">
+                        "{s.bio}"
+                      </p>
 
-                    <button type="button" onClick={() => console.log('Connect', s.id)} className="w-full bg-[var(--mist)] hover:bg-[var(--primary-light)] text-[var(--forest)] py-2.5 rounded-lg font-bold text-sm transition-colors mt-auto">
-                      Connect
-                    </button>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              {sortedSeekers.length === 0 && (
-                <div className="col-span-full py-10 text-center text-[var(--slate)]">
-                  No flatmates found matching your filters.
-                </div>
-              )}
-            </motion.div>
+                      <button 
+                        type="button" 
+                        onClick={() => handleConnect(s.id)} 
+                        disabled={connectedIds.has(s.id) || connectingTo === s.id}
+                        className={`w-full py-2.5 rounded-lg font-bold text-sm transition-colors mt-auto flex items-center justify-center gap-2
+                          ${connectedIds.has(s.id) ? 'bg-[var(--primary-light)] text-[var(--primary)] cursor-not-allowed' : 
+                            'bg-[var(--mist)] hover:bg-[var(--primary-light)] text-[var(--forest)]'}`}
+                      >
+                        {connectingTo === s.id ? <Loader2 size={16} className="animate-spin" /> : null}
+                        {connectedIds.has(s.id) ? "Request Sent" : "Connect"}
+                      </button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                {sortedSeekers.length === 0 && (
+                  <div className="col-span-full py-10 text-center text-[var(--slate)]">
+                    No flatmates found matching your filters.
+                  </div>
+                )}
+              </motion.div>
+            )}
           </div>
 
         </div>

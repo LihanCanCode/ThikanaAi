@@ -229,18 +229,24 @@ export default function RoomShareDetailPage({ params }: { params: Promise<{ id: 
               {/* Score bars */}
               {breakdown ? (
                 [
-                  { label: "Price fairness", score: breakdown.priceFairness ?? 0, max: 25 },
-                  { label: "Photo quality", score: breakdown.photoQuality ?? 0, max: 25 },
-                  { label: "Organized room", score: breakdown.organizedRoom ?? 0, max: 25 },
-                  { label: "No duplicate found", score: breakdown.noDuplicates ?? 0, max: 25 },
+                  { label: "Price Anomaly", score: breakdown.price?.score ?? 0, max: 30, note: breakdown.price?.note },
+                  { label: "Photo Evidence", score: breakdown.photos?.score ?? 0, max: 20, note: breakdown.photos?.note },
+                  { label: "Description Quality", score: breakdown.description?.score ?? 0, max: 20, note: breakdown.description?.note },
+                  { label: "NLP Duplicate Check", score: breakdown.duplicate?.score ?? 0, max: 15, note: breakdown.duplicate?.note },
+                  { label: "pHash Image Check", score: breakdown.photo_hash?.score ?? 0, max: 15, note: breakdown.photo_hash?.note },
                 ].map(item => (
-                  <div key={item.label} style={{ marginBottom: "8px" }}>
+                  <div key={item.label} style={{ marginBottom: "10px" }} title={item.note}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", marginBottom: "3px" }}>
-                      <span style={{ color: "var(--text-muted)" }}>{item.label}</span>
+                      <span style={{ color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
+                        {item.label}
+                      </span>
                       <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>{item.score}/{item.max}</span>
                     </div>
-                    <div style={{ height: 4, background: "var(--bg-muted)", borderRadius: 2, overflow: "hidden" }}>
-                      <div style={{ width: `${(item.score / item.max) * 100}%`, height: "100%", background: item.score >= item.max ? "var(--success)" : item.score >= item.max * 0.5 ? "#F59E0B" : "var(--danger)", borderRadius: 2 }} />
+                    <div style={{ height: 4, background: "var(--bg-muted)", borderRadius: 2, overflow: "hidden", marginBottom: "3px" }}>
+                      <div style={{ width: `${(item.score / item.max) * 100}%`, height: "100%", background: item.score >= item.max * 0.8 ? "var(--success)" : item.score >= item.max * 0.4 ? "#F59E0B" : "var(--danger)", borderRadius: 2, transition: "width 0.5s ease" }} />
+                    </div>
+                    <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", fontStyle: "italic", lineHeight: 1.2 }}>
+                      {item.note}
                     </div>
                   </div>
                 ))

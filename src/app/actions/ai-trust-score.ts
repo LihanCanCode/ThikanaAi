@@ -52,9 +52,12 @@ export async function generateTrustScore(
     let priceFairness = 15; // default fallback
     let reasoning = "Calculated manually due to missing photos or AI error.";
 
-    if (photos.length > 0 && process.env.GOOGLE_GEMINI_API_KEY) {
+    const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+    const canUseGemini = apiKey && !apiKey.startsWith("placeholder") && apiKey.startsWith("AIzaSy");
+
+    if (photos.length > 0 && canUseGemini) {
       // 3. Call Gemini Vision
-      const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY);
+      const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
       // Fetch the first photo to send to Gemini

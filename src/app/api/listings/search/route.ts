@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { SEED_LISTINGS } from "@/lib/seed-listings";
 import type { Listing, SearchFilters } from "@/types";
 
 function applyFilters(listings: Listing[], filters: SearchFilters, textQuery?: string): Listing[] {
@@ -55,10 +54,8 @@ export async function POST(req: NextRequest) {
 
     const { data, error } = await queryBuilder.order("created_at", { ascending: false });
 
-    let listings: Listing[];
-    if (error || !data || data.length === 0) {
-      listings = applyFilters(SEED_LISTINGS as Listing[], { ...filters, type: type as SearchFilters["type"] }, query);
-    } else {
+    let listings: Listing[] = [];
+    if (!error && data && data.length > 0) {
       listings = applyFilters(data as Listing[], filters, query);
     }
 

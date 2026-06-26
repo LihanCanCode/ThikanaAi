@@ -66,52 +66,67 @@ export default function ListPropertyPage() {
     if (files.length === 0) return;
 
     files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64Url = event.target?.result as string;
-        if (!base64Url) return;
+      const id = Math.random().toString(36).substring(7);
+      const mimeType = file.type;
+      
+      // Use Object URL for instant preview UI without waiting for base64 conversion
+      const previewUrl = URL.createObjectURL(file);
 
-        const id = Math.random().toString(36).substring(7);
-        const mimeType = file.type;
+      // Add to state immediately to show loading
+      setUploadedPhotos((prev) => [
+        ...prev,
+        { id, file, base64: previewUrl, mimeType, loading: true }
+      ]);
 
-        // Add to state immediately to show loading
-        setUploadedPhotos((prev) => [
-          ...prev,
-          { id, file, base64: base64Url, mimeType, loading: true }
-        ]);
+      // Client-side image resizing to prevent 413 Payload Too Large
+      const img = new Image();
+      img.src = previewUrl;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_SIZE = 800;
+        let { width, height } = img;
 
-        try {
-          const res = await fetch("/api/ai/photo-score", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageBase64: base64Url, mimeType })
-          });
+        if (width > height && width > MAX_SIZE) {
+          height = Math.round((height * MAX_SIZE) / width);
+          width = MAX_SIZE;
+        } else if (height > MAX_SIZE) {
+          width = Math.round((width * MAX_SIZE) / height);
+          height = MAX_SIZE;
+        }
 
-          const data = await res.json();
-          
-          if (!res.ok || data.error) {
-            console.error("Photo scoring failed", data);
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // Get compressed base64 (converting to JPEG to save space)
+        const resizedBase64 = canvas.toDataURL("image/jpeg", 0.7);
+
+        fetch("/api/ai/photo-score", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: resizedBase64, mimeType: "image/jpeg" })
+        })
+        .then(res => res.json().then(data => ({ ok: res.ok, status: res.status, data })))
+        .then(({ ok, status, data }) => {
+          if (!ok || data.error) {
+            console.error("Photo scoring failed (Status:", status, "):", data);
             setUploadedPhotos((prev) => prev.map(p => p.id === id ? { ...p, loading: false } : p));
             return;
           }
-
           if (data.skipped) {
             setUploadedPhotos((prev) => prev.map(p => p.id === id ? { ...p, loading: false } : p));
             return;
           }
-
           setUploadedPhotos((prev) => prev.map(p => 
-            p.id === id 
-              ? { ...p, loading: false, score: data.score, suggestion: data.suggestion } 
-              : p
+            p.id === id ? { ...p, loading: false, score: data.score, suggestion: data.suggestion } : p
           ));
-
-        } catch (error) {
+        })
+        .catch(error => {
           console.error("Fetch error while scoring photo:", error);
           setUploadedPhotos((prev) => prev.map(p => p.id === id ? { ...p, loading: false } : p));
-        }
+        });
       };
-      reader.readAsDataURL(file);
     });
   };
 

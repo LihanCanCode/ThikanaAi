@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
-    const canUseGemini = apiKey && !apiKey.startsWith("placeholder");
+    const canUseGemini = apiKey && !apiKey.startsWith("placeholder") && apiKey.startsWith("AIzaSy");
 
     if (canUseGemini) {
       try {
