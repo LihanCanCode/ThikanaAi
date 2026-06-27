@@ -7,7 +7,7 @@ import Link from "next/link";
 import Navbar from "@/components/shared/Navbar";
 import { DHAKA_AREAS, UNIVERSITIES, formatBDT } from "@/lib/utils";
 import { fadeUpStagger, fadeUp } from "@/lib/animations";
-import { Users, Filter, Check, MapPin, Loader2, DoorOpen, ShieldCheck, AlertTriangle, X, Phone, Bed, Sparkles, Send, CheckCircle, Trash2 } from "lucide-react";
+import { Users, Filter, Check, MapPin, Loader2, DoorOpen, ShieldCheck, AlertTriangle, X, Phone, Bed, Sparkles, Send, CheckCircle, Trash2, Bot, MessageCircle } from "lucide-react";
 import { getFlatmateProfiles, postFlatmateProfile, deleteFlatmateProfile } from "@/app/flatmate-actions";
 import { sendConnectionRequest } from "@/app/actions/chat-actions";
 import { toast } from "react-hot-toast";
@@ -216,6 +216,52 @@ export default function FlatmatesPage() {
   const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // AI Matchmaker State
+  const [showAiChat, setShowAiChat] = useState(false);
+  const [aiChatInput, setAiChatInput] = useState("");
+  const [aiChatMessages, setAiChatMessages] = useState<{role: 'user' | 'ai', text: string}[]>([
+    { role: 'ai', text: "Hey! I'm the Thikana Matchmaker. Tell me what kind of flatmate you're looking for! (e.g. 'I need a non-smoking night owl from BUET under 10k')" }
+  ]);
+  const [aiChatLoading, setAiChatLoading] = useState(false);
+
+  const handleAiChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiChatInput.trim() || aiChatLoading) return;
+    
+    const userText = aiChatInput.trim();
+    setAiChatInput("");
+    setAiChatMessages(prev => [...prev, { role: 'user', text: userText }]);
+    setAiChatLoading(true);
+
+    try {
+      const res = await fetch("/api/ai/match-flatmates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: userText })
+      });
+      const data = await res.json();
+      
+      setAiChatMessages(prev => [...prev, { role: 'ai', text: data.text || "Sorry, I couldn't find anyone matching that right now." }]);
+    } catch (err) {
+      setAiChatMessages(prev => [...prev, { role: 'ai', text: "Oops, something went wrong connecting to my brain!" }]);
+    } finally {
+      setAiChatLoading(false);
+    }
+  };
+
+  const renderFormattedText = (text: string) => {
+    return text.split('\n').map((line, i) => {
+      if (!line) return <br key={i} />;
+      const parts = line.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={j}>{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      });
+      return <div key={i} style={{ marginBottom: "4px" }}>{parts}</div>;
+    });
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -514,7 +560,7 @@ export default function FlatmatesPage() {
                   <Loader2 className="animate-spin mr-2" size={20} /> Loading profiles...
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   {sortedSeekers.slice(0, 4).map(s => (
                     <motion.div key={s.id} variants={fadeUp} layout className="bg-white rounded-2xl p-5 border border-[var(--foam)] shadow-[var(--shadow-sm)] flex flex-col hover:border-[var(--emerald)] transition-colors">
                       <div className="flex justify-between items-start mb-4">
@@ -629,8 +675,8 @@ export default function FlatmatesPage() {
                   <Loader2 className="animate-spin mr-2" size={20} /> Loading rooms...
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {roomShares.slice(0, 6).map(room => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {roomShares.slice(0, 4).map(room => (
                     <RoomShareCard key={room.id} room={room} />
                   ))}
                   {roomShares.length === 0 && (
@@ -805,7 +851,7 @@ export default function FlatmatesPage() {
                     <Loader2 className="animate-spin mr-2" size={24} /> Loading profiles...
                   </div>
                 ) : (
-                  <motion.div variants={fadeUpStagger} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <motion.div variants={fadeUpStagger} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     <AnimatePresence mode="popLayout">
                       {sortedSeekers.map(s => (
                         <motion.div key={s.id} variants={fadeUp} layout className="bg-white rounded-2xl p-5 border border-[var(--foam)] shadow-[var(--shadow-sm)] flex flex-col hover:border-[var(--emerald)] transition-colors">
@@ -908,6 +954,59 @@ export default function FlatmatesPage() {
           </div>
         )}
       </main>
+
+      {/* Floating AI Matchmaker Chat */}
+      {typeof document !== "undefined" && createPortal(
+        <div style={{ position: "fixed", bottom: "2rem", right: "2rem", zIndex: 99999 }}>
+          {showAiChat ? (
+          <div style={{ width: "350px", height: "450px", background: "#fff", borderRadius: "16px", boxShadow: "0 10px 40px rgba(0,0,0,0.15)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "1rem", background: "linear-gradient(135deg, var(--forest), var(--jade))", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700 }}>
+                <Bot size={20} /> AI Matchmaker
+              </div>
+              <button onClick={() => setShowAiChat(false)} style={{ background: "transparent", border: "none", color: "#fff", cursor: "pointer" }}><X size={18} /></button>
+            </div>
+            
+            <div style={{ flex: 1, padding: "1rem", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px", background: "var(--mist)" }}>
+              {aiChatMessages.map((msg, idx) => (
+                <div key={idx} style={{ alignSelf: msg.role === 'user' ? "flex-end" : "flex-start", background: msg.role === 'user' ? "var(--emerald)" : "#fff", color: msg.role === 'user' ? "#fff" : "var(--text-primary)", padding: "12px 14px", borderRadius: "12px", borderBottomRightRadius: msg.role === 'user' ? 0 : "12px", borderBottomLeftRadius: msg.role === 'ai' ? 0 : "12px", maxWidth: "85%", fontSize: "0.85rem", boxShadow: "var(--shadow-sm)", lineHeight: 1.5 }}>
+                  {renderFormattedText(msg.text)}
+                </div>
+              ))}
+              {aiChatLoading && (
+                <div style={{ alignSelf: "flex-start", background: "#fff", padding: "10px 14px", borderRadius: "12px", borderBottomLeftRadius: 0, boxShadow: "var(--shadow-sm)" }}>
+                  <Loader2 size={16} style={{ animation: "spin 1s linear infinite", color: "var(--emerald)" }} />
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleAiChatSubmit} style={{ padding: "0.75rem", background: "#fff", borderTop: "1px solid var(--border)", display: "flex", gap: "8px" }}>
+              <input 
+                type="text" 
+                value={aiChatInput}
+                onChange={e => setAiChatInput(e.target.value)}
+                placeholder="Find me a night owl..."
+                style={{ flex: 1, padding: "10px 12px", borderRadius: "8px", border: "1px solid var(--border)", outline: "none", fontSize: "0.85rem" }}
+              />
+              <button type="submit" disabled={aiChatLoading} style={{ background: "var(--emerald)", color: "#fff", border: "none", borderRadius: "8px", padding: "0 12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Send size={16} />
+              </button>
+            </form>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setShowAiChat(true)}
+            style={{ width: "60px", height: "60px", borderRadius: "50%", background: "linear-gradient(135deg, var(--forest), var(--jade))", color: "#fff", border: "none", boxShadow: "0 4px 14px rgba(22,101,52,0.4)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "transform 0.2s" }}
+            onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
+            onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
+          >
+            <MessageCircle size={28} />
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
+
     </div>
   );
 }
