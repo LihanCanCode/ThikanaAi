@@ -378,7 +378,7 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
               { icon: "🛏", label: "Bedrooms", val: listing.rooms },
               { icon: "🚿", label: "Bathrooms", val: listing.bathrooms },
               { icon: "🏢", label: "Floor", val: listing.floor ?? "—" },
-              { icon: "🪑", label: "Furnishing", val: listing.furnishing === "fully" ? "Full" : listing.furnishing === "semi" ? "Semi" : "Bare" },
+
             ].map(s => (
               <div key={s.label} style={{ textAlign: "center" }}>
                 <div style={{ fontSize: "1.2rem" }}>{s.icon}</div>
@@ -850,7 +850,7 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
                 {[
                   { icon: "📍", label: "Area", val: listing.area },
                   { icon: "🏗", label: "Type", val: typeBadge.label },
-                  { icon: "🪑", label: "Furnishing", val: listing.furnishing === "fully" ? "Fully Furnished" : listing.furnishing === "semi" ? "Semi-Furnished" : "Unfurnished" },
+
                   ...(listing.floor !== undefined && listing.floor !== null ? [{ icon: "🏢", label: "Floor", val: String(listing.floor) }] : []),
                   { icon: "⚡", label: "Utilities", val: listing.utilities_included ? "Included" : "Not included" },
                   { icon: "🔑", label: "Status", val: listing.is_available ? "Available" : "Not Available" },

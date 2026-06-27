@@ -148,7 +148,7 @@ function FamilyListingsContent() {
       <div className="flex-grow pt-8 container mx-auto px-6 pb-20 flex flex-col md:flex-row gap-8">
         
         {/* FILTER SIDEBAR */}
-        <aside className="w-full md:w-[280px] shrink-0 h-fit md:sticky md:top-24 bg-white rounded-2xl border border-[var(--foam)] shadow-[var(--shadow-sm)] p-6 overflow-y-auto max-h-[calc(100vh-120px)] custom-scrollbar">
+        <aside className="w-full md:w-[280px] shrink-0 h-auto md:h-[calc(100vh-120px)] md:sticky md:top-24 bg-white rounded-2xl border border-[var(--foam)] shadow-[var(--shadow-sm)] p-6 overflow-y-auto custom-scrollbar">
           <div className="flex items-center justify-between mb-6">
             <h2 className="heading text-[var(--forest)] flex items-center gap-2">
               <SlidersHorizontal size={18} /> Filters
@@ -163,7 +163,8 @@ function FamilyListingsContent() {
                 type="text" 
                 value={inputVal}
                 onChange={e => setInputVal(e.target.value)}
-                className="input pl-9 w-full text-sm" 
+                className="input w-full text-sm" 
+                style={{ paddingLeft: "2.25rem" }}
                 placeholder="AI Search (e.g. 3 bed in Banani)" 
               />
             </div>
@@ -183,7 +184,8 @@ function FamilyListingsContent() {
               <div className="relative">
                 <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--stone)]" />
                 <select 
-                  className="input pl-9 w-full text-sm cursor-pointer appearance-none bg-transparent"
+                  className="input w-full text-sm cursor-pointer appearance-none bg-transparent"
+                  style={{ paddingLeft: "2.25rem" }}
                   value={filters.area || ""} 
                   onChange={e => { const f = { ...filters, area: e.target.value || undefined }; setFilters(f); searchWithFilters(f); }}
                 >
@@ -243,27 +245,7 @@ function FamilyListingsContent() {
               </div>
             </div>
             
-            <div className="w-full h-px bg-[var(--foam)]" />
 
-            {/* Furnishing Filter */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="caption text-[var(--slate)] font-semibold uppercase tracking-wider">Furnishing</h3>
-              </div>
-              <div className="relative">
-                <select 
-                  className="input w-full text-sm cursor-pointer appearance-none pr-8"
-                  value={filters.furnishing || ""} 
-                  onChange={e => { const f = { ...filters, furnishing: e.target.value as SearchFilters["furnishing"] || undefined }; setFilters(f); searchWithFilters(f); }}
-                >
-                  <option value="">Any Furnishing</option>
-                  <option value="unfurnished">Unfurnished</option>
-                  <option value="semi">Semi-Furnished</option>
-                  <option value="fully">Fully-Furnished</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--stone)] pointer-events-none" />
-              </div>
-            </div>
             
           </div>
 

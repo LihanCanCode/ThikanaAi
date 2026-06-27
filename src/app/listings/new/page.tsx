@@ -78,7 +78,6 @@ export default function ListPropertyPage() {
     beds: 2,
     baths: 2,
     floor: "4",
-    furnishing: "semi",
     price: 12000,
     title: "New Property Listing",
     targetAudience: "student",
@@ -256,7 +255,6 @@ export default function ListPropertyPage() {
           rooms: formData.beds.toString(),
           bathrooms: formData.baths.toString(),
           floor: formData.floor,
-          furnishing: formData.furnishing,
           type: "student",
           utilities: false,
           notes: ""
@@ -283,8 +281,7 @@ export default function ListPropertyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           area: formData.area,
-          rooms: formData.beds,
-          furnishing: formData.furnishing
+          rooms: formData.beds
         })
       });
       const data = await res.json();
@@ -593,27 +590,7 @@ export default function ListPropertyPage() {
                       />
                     </div>
 
-                    <div>
-                      <h3 className="heading text-[var(--forest)] mb-4">Furnishing Status</h3>
-                      <div className="flex gap-4">
-                        {['Unfurnished', 'Semi-Furnished', 'Fully Furnished'].map(f => {
-                          const id = f.toLowerCase().split('-')[0].split(' ')[0];
-                          return (
-                            <button
-                              key={f}
-                              onClick={() => setFormData({...formData, furnishing: id})}
-                              className={`flex-1 py-3 px-2 rounded-xl text-sm font-semibold border-2 transition-all ${
-                                formData.furnishing === id 
-                                  ? "border-[var(--emerald)] bg-[var(--mint)] text-[var(--forest)]" 
-                                  : "border-[var(--foam)] text-[var(--slate)] hover:border-[var(--emerald)] hover:bg-[var(--mist)]"
-                              }`}
-                            >
-                              {f}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
+
                   </div>
                 )}
 

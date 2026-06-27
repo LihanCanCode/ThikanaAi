@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, MapPin, X, ChevronDown, Sparkles, Bell, SlidersHorizontal, Map as MapIcon, LayoutGrid, Loader2 } from "lucide-react";
+import { Search, MapPin, X, ChevronDown, Sparkles, Bell, SlidersHorizontal, Map as MapIcon, LayoutGrid, Loader2, Users } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
 import ListingCard from "@/components/listings/ListingCard";
 import ListingMap from "@/components/listings/ListingMap";
 import { DHAKA_AREAS, UNIVERSITIES, getDistanceKm } from "@/lib/utils";
 import type { Listing, SearchFilters } from "@/types";
 import { Toaster, toast } from "react-hot-toast";
+import { getAcceptedSquadMembers, type FlatmateProfile } from "@/app/flatmate-actions";
 
 import { fadeUpStagger, fadeUp } from "@/lib/animations";
 
@@ -23,6 +24,8 @@ function StudentListingsContent() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
   const [aiParsed, setAiParsed] = useState(false);
+  const [squadMembers, setSquadMembers] = useState<FlatmateProfile[]>([]);
+  const [selectedSquadId, setSelectedSquadId] = useState<string>("");
   
   // View states
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
@@ -101,7 +104,35 @@ function StudentListingsContent() {
 
   useEffect(() => {
     parseAndSearch(initialQ);
+    getAcceptedSquadMembers().then(members => setSquadMembers(members || []));
   }, [initialQ, parseAndSearch]);
+
+  const handleSquadChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedSquadId(id);
+    if (id) {
+      const friend = squadMembers.find(m => m.id === id);
+      if (friend) {
+        // Base budget logic: if user hasn't set max_rent, assume a baseline 10,000 for calculation
+        const baseBudget = filters.max_rent || 10000; 
+        const combined = baseBudget + friend.budget_max;
+        const newFilters = { 
+          ...filters, 
+          max_rent: combined > 30000 ? 30000 : combined, 
+          rooms: 2 
+        };
+        setFilters(newFilters);
+        searchWithFilters(newFilters);
+        toast.success(`Squad Mode Active! Combined budget ৳${combined.toLocaleString()} for 2+ rooms.`);
+      }
+    } else {
+      // Revert squad search
+      const newFilters = { ...filters };
+      delete newFilters.rooms;
+      setFilters(newFilters);
+      searchWithFilters(newFilters);
+    }
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,12 +182,37 @@ function StudentListingsContent() {
       <div className="flex-grow pt-8 container mx-auto px-6 pb-20 flex flex-col md:flex-row gap-8">
         
         {/* FILTER SIDEBAR */}
-        <aside className="w-full md:w-[280px] shrink-0 h-fit md:sticky md:top-24 bg-white rounded-2xl border border-[var(--foam)] shadow-[var(--shadow-sm)] p-6 overflow-y-auto max-h-[calc(100vh-120px)] custom-scrollbar">
+        <aside className="w-full md:w-[280px] shrink-0 h-auto md:h-[calc(100vh-120px)] md:sticky md:top-24 bg-white rounded-2xl border border-[var(--foam)] shadow-[var(--shadow-sm)] p-6 overflow-y-auto custom-scrollbar">
           <div className="flex items-center justify-between mb-6">
             <h2 className="heading text-[var(--forest)] flex items-center gap-2">
               <SlidersHorizontal size={18} /> Filters
             </h2>
             <button onClick={clearFilters} className="text-sm font-medium text-[var(--jade)] hover:text-[var(--emerald)] hover-underline">Reset All</button>
+          </div>
+
+          <div className="mb-6 p-4 bg-[var(--mint)]/20 border border-[var(--emerald)]/30 rounded-xl">
+            <h3 className="caption text-[var(--forest)] font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
+              <Users size={16} /> Squad Search
+            </h3>
+            <p className="text-xs text-[var(--slate)] mb-3 leading-relaxed">
+              Combine your budget with a flatmate to find bigger flats.
+            </p>
+            {squadMembers.length > 0 ? (
+              <select 
+                className="w-full p-2.5 bg-white border border-[var(--emerald)]/30 rounded-lg outline-none text-sm font-semibold text-[var(--forest)] appearance-none cursor-pointer"
+                value={selectedSquadId}
+                onChange={handleSquadChange}
+              >
+                <option value="">Just for me</option>
+                {squadMembers.map(m => (
+                  <option key={m.id} value={m.id}>+ {m.name} (Budget: {(m.budget_max / 1000).toFixed(0)}k)</option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full p-2.5 bg-white/50 border border-[var(--foam)] rounded-lg text-sm text-[var(--stone)] text-center">
+                No connected flatmates yet.
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSearch} className="mb-6">
@@ -166,7 +222,8 @@ function StudentListingsContent() {
                 type="text" 
                 value={inputVal}
                 onChange={e => setInputVal(e.target.value)}
-                className="input pl-9 w-full text-sm" 
+                className="input w-full text-sm" 
+                style={{ paddingLeft: "2.25rem" }}
                 placeholder="AI Search..." 
               />
             </div>
@@ -186,7 +243,8 @@ function StudentListingsContent() {
               <div className="relative">
                 <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--stone)]" />
                 <select 
-                  className="input pl-9 w-full text-sm cursor-pointer appearance-none bg-transparent"
+                  className="input w-full text-sm cursor-pointer appearance-none bg-transparent"
+                  style={{ paddingLeft: "2.25rem" }}
                   value={filters.area || ""} 
                   onChange={e => { const f = { ...filters, area: e.target.value || undefined, type: "student" as const }; setFilters(f); searchWithFilters(f); }}
                 >
@@ -266,27 +324,7 @@ function StudentListingsContent() {
               </div>
             </div>
             
-            <div className="w-full h-px bg-[var(--foam)]" />
 
-            {/* Furnishing Filter */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="caption text-[var(--slate)] font-semibold uppercase tracking-wider">Furnishing</h3>
-              </div>
-              <div className="relative">
-                <select 
-                  className="input w-full text-sm cursor-pointer appearance-none pr-8"
-                  value={filters.furnishing || ""} 
-                  onChange={e => { const f = { ...filters, furnishing: e.target.value as SearchFilters["furnishing"] || undefined, type: "student" as const }; setFilters(f); searchWithFilters(f); }}
-                >
-                  <option value="">Any Furnishing</option>
-                  <option value="unfurnished">Unfurnished</option>
-                  <option value="semi">Semi-Furnished</option>
-                  <option value="fully">Fully-Furnished</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--stone)] pointer-events-none" />
-              </div>
-            </div>
             
           </div>
 

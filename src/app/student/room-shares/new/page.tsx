@@ -238,65 +238,45 @@ export default function NewRoomSharePage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
+    <div className="min-h-screen bg-[var(--mist)] flex flex-col">
       <Navbar />
-      <div className="container" style={{ padding: "2rem 1.5rem", maxWidth: "700px", margin: "0 auto" }}>
-        <h1 style={{ fontSize: "1.8rem", fontWeight: 800, marginBottom: "0.5rem", color: "var(--primary)" }}>
+      <div className="flex-grow container mx-auto px-6 py-12 max-w-3xl">
+        <h1 className="text-3xl font-['Playfair_Display'] font-bold text-[var(--forest)] mb-2">
           Post an Available Room
         </h1>
-        <p style={{ color: "var(--text-muted)", marginBottom: "2rem", fontSize: "0.9rem" }}>
+        <p className="text-[var(--slate)] mb-10">
           Share a vacant room or seat in your flat with fellow students. Keep costs low, build a community!
         </p>
 
         {/* Step indicator */}
-        <div style={{ display: "flex", gap: "0", marginBottom: "2.5rem" }}>
+        <div className="flex items-center gap-0 mb-12">
           {["Room Details", "Flatmate Preferences", "Preview & Publish"].map((s, i) => (
-            <div key={s} style={{ flex: 1, display: "flex", alignItems: "center" }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+            <div key={s} className="flex-1 flex items-center">
+              <div className="flex flex-col items-center flex-1">
                 <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    background:
-                      step > i + 1
-                        ? "var(--success)"
-                        : step === i + 1
-                        ? "var(--primary)"
-                        : "var(--bg-muted)",
-                    color: step >= i + 1 ? "#fff" : "var(--text-muted)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 700,
-                    fontSize: "0.85rem",
-                    transition: "all 0.3s",
-                  }}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 shadow-sm ${
+                    step > i + 1
+                      ? "bg-[var(--fern)] text-white"
+                      : step === i + 1
+                      ? "bg-[var(--emerald)] text-white shadow-md scale-110"
+                      : "bg-white text-[var(--stone)] border border-[var(--foam)]"
+                  }`}
                 >
-                  {step > i + 1 ? <CheckCircle size={16} /> : i + 1}
+                  {step > i + 1 ? <CheckCircle size={18} /> : i + 1}
                 </div>
                 <span
-                  style={{
-                    fontSize: "0.72rem",
-                    color: step === i + 1 ? "var(--primary)" : "var(--text-muted)",
-                    marginTop: "4px",
-                    fontWeight: step === i + 1 ? 600 : 400,
-                    textAlign: "center",
-                  }}
+                  className={`text-xs mt-3 text-center ${
+                    step === i + 1 ? "text-[var(--forest)] font-bold" : "text-[var(--stone)] font-medium"
+                  }`}
                 >
                   {s}
                 </span>
               </div>
               {i < 2 && (
                 <div
-                  style={{
-                    flex: 0,
-                    width: "40px",
-                    height: 2,
-                    background: step > i + 1 ? "var(--success)" : "var(--bg-muted)",
-                    marginBottom: "18px",
-                    transition: "all 0.3s",
-                  }}
+                  className={`flex-none w-12 h-1 rounded-full mb-6 transition-all duration-300 ${
+                    step > i + 1 ? "bg-[var(--fern)]" : "bg-[var(--foam)]"
+                  }`}
                 />
               )}
             </div>
@@ -305,16 +285,17 @@ export default function NewRoomSharePage() {
 
         {/* Step 1: Room Details */}
         {step === 1 && (
-          <div className="card" style={{ padding: "1.75rem" }}>
-            <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1.25rem", color: "var(--text-primary)" }}>
-              🔑 Room & Seat Details
+          <div className="bg-white rounded-2xl border border-[var(--foam)] shadow-[var(--shadow-sm)] p-8">
+            <h2 className="heading text-[var(--forest)] mb-6 flex items-center gap-2">
+              <span className="text-xl">🔑</span> Room & Seat Details
             </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            
+            <div className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label style={labelStyle}>Area *</label>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Area *</label>
                   <select
-                    className="input"
+                    className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium appearance-none"
                     value={form.area}
                     onChange={(e) => set("area", e.target.value)}
                   >
@@ -327,10 +308,10 @@ export default function NewRoomSharePage() {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Monthly Rent per Seat/Room (৳) *</label>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Monthly Rent per Seat/Room (৳) *</label>
                   <input
                     type="number"
-                    className="input"
+                    className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium"
                     placeholder="e.g. 4500"
                     value={form.rent}
                     onChange={(e) => set("rent", e.target.value)}
@@ -339,10 +320,10 @@ export default function NewRoomSharePage() {
               </div>
 
               <div>
-                <label style={labelStyle}>Full Address</label>
+                <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Full Address</label>
                 <input
                   type="text"
-                  className="input"
+                  className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium"
                   placeholder="Road No, House Name/No, Sector..."
                   value={form.address}
                   onChange={(e) => set("address", e.target.value)}
@@ -350,67 +331,49 @@ export default function NewRoomSharePage() {
               </div>
 
               {/* Location Picker */}
-              <div
-                style={{
-                  background: "var(--bg-subtle)",
-                  borderRadius: "var(--radius-md)",
-                  padding: "1.25rem",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                <label style={{ ...labelStyle, marginBottom: "8px" }}>
-                  📍 Geo-Anchor Location
+              <div className="bg-[var(--mist)] rounded-xl p-6 border border-[var(--emerald)]/20">
+                <label className="text-sm font-semibold text-[var(--slate)] mb-4 flex items-center gap-2 uppercase tracking-wider">
+                  <MapPin size={16} className="text-[var(--emerald)]" /> Geo-Anchor Location
                 </label>
                 {form.lat !== 0 && form.lng !== 0 && (
-                  <div
-                    style={{
-                      marginBottom: "10px",
-                      padding: "6px 12px",
-                      background: "var(--primary-xlight)",
-                      borderRadius: "var(--radius-sm)",
-                      fontSize: "0.8rem",
-                      color: "var(--primary)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    ✅ Pinned: {form.lat.toFixed(5)}, {form.lng.toFixed(5)}
+                  <div className="mb-4 inline-flex items-center gap-2 px-3 py-1.5 bg-[var(--mint)] text-[var(--forest)] rounded-lg text-xs font-bold border border-[var(--emerald)]/30">
+                    <CheckCircle size={14} />
+                    Pinned: {form.lat.toFixed(5)}, {form.lng.toFixed(5)}
                   </div>
                 )}
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <div className="flex flex-wrap gap-3">
                   <button
                     type="button"
-                    className="btn btn-outline"
+                    className="bg-white border border-[var(--foam)] text-[var(--forest)] px-4 py-2 rounded-lg text-sm font-semibold hover:border-[var(--emerald)] hover:text-[var(--emerald)] transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
                     onClick={geocodeAddress}
                     disabled={geocoding || (!form.address && !form.area)}
-                    style={{ gap: "6px", fontSize: "0.82rem", background: "#fff" }}
                   >
                     {geocoding ? (
-                      <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                      <Loader2 size={16} className="animate-spin text-[var(--emerald)]" />
                     ) : (
-                      <MapPin size={14} />
+                      <MapPin size={16} />
                     )}
                     Pin from Address
                   </button>
                   <button
                     type="button"
-                    className="btn btn-outline"
+                    className="bg-[var(--primary-light)] text-[var(--forest)] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[var(--mint)] transition-colors flex items-center gap-2 shadow-sm"
                     onClick={useCurrentLocation}
-                    style={{ gap: "6px", fontSize: "0.82rem", background: "#fff" }}
                   >
-                    <Navigation size={14} /> Use Current GPS
+                    <Navigation size={16} /> Use Current GPS
                   </button>
                 </div>
-                <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "8px" }}>
+                <p className="text-xs text-[var(--stone)] mt-3">
                   This coordinates your room on our University-Distance Map view, showing walking path durations.
                 </p>
               </div>
 
               {/* Student specific: Current Roommates and Seats Available */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label style={labelStyle}>Current Flatmates Living There *</label>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Current Flatmates Living There *</label>
                   <select
-                    className="input"
+                    className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium appearance-none"
                     value={form.current_roommates}
                     onChange={(e) => set("current_roommates", e.target.value)}
                   >
@@ -422,9 +385,9 @@ export default function NewRoomSharePage() {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Available Vacant Seats/Rooms *</label>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Available Vacant Seats/Rooms *</label>
                   <select
-                    className="input"
+                    className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium appearance-none"
                     value={form.available_seats}
                     onChange={(e) => set("available_seats", e.target.value)}
                   >
@@ -439,21 +402,13 @@ export default function NewRoomSharePage() {
 
               {/* Photo Upload */}
               <div>
-                <label style={labelStyle}>📸 Room Photos (Max 4)</label>
+                <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">📸 Room Photos (Max 4)</label>
                 <div
                   onClick={() => fileRef.current?.click()}
-                  style={{
-                    border: "2px dashed var(--border-strong)",
-                    borderRadius: "var(--radius-md)",
-                    padding: "1.5rem",
-                    textAlign: "center",
-                    cursor: "pointer",
-                    background: "var(--bg-surface)",
-                    transition: "border-color 0.2s",
-                  }}
+                  className="border-2 border-dashed border-[var(--emerald)]/40 hover:border-[var(--emerald)] bg-[var(--mist)] rounded-2xl p-8 text-center cursor-pointer transition-colors"
                 >
-                  <Upload size={24} style={{ color: "var(--primary)", marginBottom: "8px" }} />
-                  <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: 0 }}>
+                  <Upload size={28} className="mx-auto text-[var(--emerald)] mb-3" />
+                  <p className="text-sm font-medium text-[var(--forest)]">
                     Click to choose photos of the room/flat
                   </p>
                   <input
@@ -462,42 +417,23 @@ export default function NewRoomSharePage() {
                     multiple
                     accept="image/*"
                     onChange={handlePhotoChange}
-                    style={{ display: "none" }}
+                    className="hidden"
                   />
                 </div>
                 {previews.length > 0 && (
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "12px" }}>
+                  <div className="flex flex-wrap gap-4 mt-4">
                     {previews.map((src, i) => (
-                      <div key={i} style={{ position: "relative" }}>
+                      <div key={i} className="relative group">
                         <img
                           src={src}
                           alt=""
-                          style={{
-                            width: 72,
-                            height: 72,
-                            objectFit: "cover",
-                            borderRadius: "var(--radius-md)",
-                            border: "1px solid var(--border)",
-                          }}
+                          className="w-20 h-20 object-cover rounded-xl border-2 border-[var(--foam)] shadow-sm"
                         />
                         <button
                           onClick={() => removePhoto(i)}
-                          style={{
-                            position: "absolute",
-                            top: -6,
-                            right: -6,
-                            background: "var(--danger)",
-                            border: "none",
-                            borderRadius: "50%",
-                            width: 18,
-                            height: 18,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-red-600"
                         >
-                          <X size={10} color="#fff" />
+                          <X size={12} />
                         </button>
                       </div>
                     ))}
@@ -505,30 +441,31 @@ export default function NewRoomSharePage() {
                 )}
               </div>
 
-              <button
-                className="btn btn-primary"
-                onClick={() => setStep(2)}
-                disabled={!form.area || !form.rent}
-                style={{ alignSelf: "flex-end", gap: "6px", marginTop: "1rem" }}
-              >
-                Next Step <ChevronRight size={16} />
-              </button>
+              <div className="pt-4 flex justify-end">
+                <button
+                  className="bg-[var(--forest)] text-white hover:bg-[var(--jade)] px-6 py-3 rounded-xl font-bold transition-colors flex items-center gap-2 disabled:opacity-50"
+                  onClick={() => setStep(2)}
+                  disabled={!form.area || !form.rent}
+                >
+                  Next Step <ChevronRight size={18} />
+                </button>
+              </div>
             </div>
           </div>
         )}
 
         {/* Step 2: Flatmate Preferences */}
         {step === 2 && (
-          <div className="card" style={{ padding: "1.75rem" }}>
-            <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1.25rem", color: "var(--text-primary)" }}>
-              👥 Flatmate Preferences
+          <div className="bg-white rounded-2xl border border-[var(--foam)] shadow-[var(--shadow-sm)] p-8">
+            <h2 className="heading text-[var(--forest)] mb-6 flex items-center gap-2">
+              <span className="text-xl">👥</span> Flatmate Preferences
             </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+            <div className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <label style={labelStyle}>Gender Preference</label>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Gender Preference</label>
                   <select
-                    className="input"
+                    className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium appearance-none"
                     value={form.gender_restriction}
                     onChange={(e) => set("gender_restriction", e.target.value)}
                   >
@@ -538,9 +475,9 @@ export default function NewRoomSharePage() {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>University Restriction (Optional)</label>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">University Restriction (Optional)</label>
                   <select
-                    className="input"
+                    className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium appearance-none"
                     value={form.university_restriction}
                     onChange={(e) => set("university_restriction", e.target.value)}
                   >
@@ -555,57 +492,44 @@ export default function NewRoomSharePage() {
               </div>
 
               <div>
-                <label style={labelStyle}>Tell us about the flat & habits</label>
+                <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Tell us about the flat & habits</label>
                 <textarea
-                  className="input"
+                  className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium"
                   rows={4}
                   placeholder="e.g. Near campus gate, cooking mess facility available, study environment, quiet hours, non-smokers preferred..."
                   value={form.notes}
                   onChange={(e) => set("notes", e.target.value)}
-                  style={{ resize: "vertical" }}
                 />
               </div>
 
-              <div
-                style={{
-                  background: "var(--primary-xlight)",
-                  borderRadius: "var(--radius-lg)",
-                  padding: "1.25rem",
-                  border: "1px solid var(--primary-light)",
-                  display: "flex",
-                  gap: "10px",
-                  alignItems: "flex-start",
-                }}
-              >
-                <Sparkles size={20} style={{ color: "var(--primary)", flexShrink: 0, marginTop: 2 }} />
+              <div className="bg-[var(--mint)]/30 rounded-xl p-5 border border-[var(--emerald)]/20 flex gap-3 items-start">
+                <Sparkles size={24} className="text-[var(--emerald)] shrink-0" />
                 <div>
-                  <h3 style={{ fontWeight: 700, fontSize: "0.92rem", color: "var(--primary)", marginBottom: "4px" }}>
+                  <h3 className="font-bold text-[var(--forest)] mb-1">
                     Bilingual AI Listing Generator
                   </h3>
-                  <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                  <p className="text-sm text-[var(--slate)] leading-relaxed">
                     Our AI will translate and format your listing into a highly polished, bilingual description (English & বাংলা) in one click.
                   </p>
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: "10px", marginTop: "1rem" }}>
-                <button className="btn btn-outline" onClick={() => setStep(1)} style={{ background: "#fff" }}>
+              <div className="pt-4 flex gap-4">
+                <button 
+                  className="bg-white border-2 border-[var(--foam)] text-[var(--forest)] px-6 py-3 rounded-xl font-bold hover:bg-[var(--mist)] transition-colors"
+                  onClick={() => setStep(1)}
+                >
                   ← Back
                 </button>
                 <button
-                  className="btn btn-primary"
+                  className="flex-1 bg-[var(--forest)] text-white hover:bg-[var(--jade)] px-6 py-3 rounded-xl font-bold transition-colors flex justify-center items-center gap-2 disabled:opacity-50"
                   onClick={generateBilingualDetails}
                   disabled={generating}
-                  style={{ flex: 1, justifyContent: "center", gap: "8px" }}
                 >
                   {generating ? (
-                    <>
-                      <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Generating...
-                    </>
+                    <><Loader2 size={18} className="animate-spin" /> Generating...</>
                   ) : (
-                    <>
-                      <Sparkles size={16} /> Generate Bilingual Listing
-                    </>
+                    <><Sparkles size={18} /> Generate Bilingual Listing</>
                   )}
                 </button>
               </div>
@@ -615,128 +539,97 @@ export default function NewRoomSharePage() {
 
         {/* Step 3: Review & Publish */}
         {step === 3 && generated && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-            <div
-              style={{
-                background: "var(--success)",
-                color: "#fff",
-                borderRadius: "var(--radius-lg)",
-                padding: "1rem 1.25rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              <CheckCircle size={20} />
+          <div className="space-y-6">
+            <div className="bg-[var(--fern)] text-white rounded-2xl p-5 flex items-center gap-4 shadow-md">
+              <CheckCircle size={24} className="shrink-0" />
               <div>
-                <div style={{ fontWeight: 700 }}>AI Copywriting generated!</div>
-                <div style={{ fontSize: "0.8rem", opacity: 0.9 }}>
+                <div className="font-bold text-lg">AI Copywriting generated!</div>
+                <div className="text-sm opacity-90 mt-1">
                   Review, edit, and publish your room share listing.
                 </div>
               </div>
             </div>
 
-            <div className="card" style={{ padding: "1.5rem" }}>
-              <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "1rem", color: "var(--primary)" }}>
-                🇬🇧 English Copy
+            <div className="bg-white rounded-2xl border border-[var(--foam)] shadow-[var(--shadow-sm)] p-8">
+              <h2 className="heading text-[var(--forest)] mb-6 flex items-center gap-2">
+                <span className="text-xl">🇬🇧</span> English Copy
               </h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div className="space-y-4">
                 <div>
-                  <label style={labelStyle}>Title (English)</label>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Title (English)</label>
                   <input
-                    className="input"
+                    className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium"
                     value={generated.title_en}
                     onChange={(e) => setGenerated({ ...generated, title_en: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Description (English)</label>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Description (English)</label>
                   <textarea
-                    className="input"
+                    className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium min-h-[120px]"
                     rows={4}
                     value={generated.description_en}
                     onChange={(e) => setGenerated({ ...generated, description_en: e.target.value })}
-                    style={{ resize: "vertical" }}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="card" style={{ padding: "1.5rem" }}>
-              <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "1rem", color: "var(--accent-hover)" }}>
-                🇧🇩 বাংলা সংস্করণ (Bengali Copy)
+            <div className="bg-white rounded-2xl border border-[var(--foam)] shadow-[var(--shadow-sm)] p-8">
+              <h2 className="heading text-[var(--forest)] mb-6 flex items-center gap-2">
+                <span className="text-xl">🇧🇩</span> বাংলা সংস্করণ (Bengali Copy)
               </h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div className="space-y-4">
                 <div>
-                  <label style={labelStyle}>শিরোনাম (বাংলা)</label>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">শিরোনাম (বাংলা)</label>
                   <input
-                    className="input bangla"
+                    className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium bangla text-lg"
                     value={generated.title_bn}
                     onChange={(e) => setGenerated({ ...generated, title_bn: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>বিবরণ (বাংলা)</label>
+                  <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">বিবরণ (বাংলা)</label>
                   <textarea
-                    className="input bangla"
+                    className="w-full p-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none transition-colors text-[var(--forest)] font-medium bangla text-lg min-h-[120px]"
                     rows={4}
                     value={generated.description_bn}
                     onChange={(e) => setGenerated({ ...generated, description_bn: e.target.value })}
-                    style={{ resize: "vertical" }}
                   />
                 </div>
               </div>
             </div>
 
             {publishError && (
-              <div
-                style={{
-                  background: "#fef2f2",
-                  border: "1px solid #fca5a5",
-                  borderRadius: "var(--radius-md)",
-                  padding: "0.75rem 1rem",
-                  color: "#dc2626",
-                  fontSize: "0.85rem",
-                }}
-              >
+              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-sm font-medium">
                 ❌ Publish failed: {publishError}
               </div>
             )}
 
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div className="pt-4 flex gap-4">
               <button
-                className="btn btn-outline"
+                className="bg-white border-2 border-[var(--foam)] text-[var(--forest)] px-6 py-3 rounded-xl font-bold hover:bg-[var(--mist)] transition-colors"
                 onClick={() => setStep(2)}
-                style={{ background: "#fff" }}
               >
                 ← Back
               </button>
               <button
-                className="btn btn-primary"
+                className="flex-1 bg-[var(--forest)] text-white hover:bg-[var(--jade)] px-6 py-3 rounded-xl font-bold transition-colors flex justify-center items-center gap-2 disabled:opacity-50"
                 onClick={handlePublish}
                 disabled={publishing}
-                style={{ flex: 1, justifyContent: "center" }}
               >
                 {publishing ? (
                   <>
-                    <Loader2 size={16} style={{ animation: "spin 1s linear infinite", marginRight: "6px" }} />
-                    Publishing Room Share...
+                    <Loader2 size={18} className="animate-spin" /> Publishing Room Share...
                   </>
                 ) : (
-                  "🚀 Publish Room Share"
+                  <>🚀 Publish Room Share</>
                 )}
               </button>
             </div>
           </div>
         )}
       </div>
-      <style jsx global>{`
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
   );
 }

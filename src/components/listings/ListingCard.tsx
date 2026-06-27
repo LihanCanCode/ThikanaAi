@@ -119,7 +119,7 @@ export default function ListingCard({ listing, distanceKm }: ListingCardProps) {
             </div>
 
             <div className="text-[var(--slate)] text-sm mb-1 mt-1 font-medium">
-              {listing.rooms} Bed &middot; {listing.bathrooms} Bath &middot; {listing.furnishing === "fully" ? "Furnished" : listing.furnishing === "semi" ? "Semi-furnished" : "Unfurnished"}
+              {listing.rooms} Bed &middot; {listing.bathrooms} Bath
             </div>
 
             <div className="text-[var(--emerald)] font-bold text-xl bangla mb-2 mt-auto">

@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS listings (
   rooms INTEGER DEFAULT 1,
   bathrooms INTEGER DEFAULT 1,
   floor INTEGER,
-  furnishing TEXT CHECK (furnishing IN ('unfurnished','semi','fully')),
+
   type TEXT CHECK (type IN ('student','family','professional')),
   for_gender TEXT CHECK (for_gender IN ('male','female','any')) DEFAULT 'any',
   utilities_included BOOLEAN DEFAULT false,

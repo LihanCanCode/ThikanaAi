@@ -13,6 +13,7 @@ import {
   getSentFlickIds,
   deleteFlatmateProfile,
 } from "@/app/student/flatmate-actions";
+import { getAcceptedSquadMembers } from "@/app/flatmate-actions";
 import { getRoomShares, type RoomShare } from "@/app/student/room-share-actions";
 import type { FlatmateProfile } from "@/types";
 
@@ -377,23 +378,27 @@ export default function FlatmateFeedPage() {
   const [profiles, setProfiles] = useState<FlatmateProfile[]>([]);
   const [roomShares, setRoomShares] = useState<RoomShare[]>([]);
   const [sentFlicks, setSentFlicks] = useState<Set<string>>(new Set());
+  const [squadMembers, setSquadMembers] = useState<FlatmateProfile[]>([]);
+  const [selectedSquadId, setSelectedSquadId] = useState("");
   const [loading, setLoading] = useState(true);
   const [deletingProfile, setDeletingProfile] = useState(false);
 
   useEffect(() => {
     async function load() {
       // ⚠️ No dummy entry auto-seeding! Operating entirely on real data.
-      const [allProfiles, mine, flickIds, allRooms] = await Promise.all([
+      const [allProfiles, mine, flickIds, allRooms, squadProfiles] = await Promise.all([
         getFlatmateProfiles(),
         getMyFlatmateProfile(),
         getSentFlickIds(),
         getRoomShares(),
+        getAcceptedSquadMembers()
       ]);
       
-      setProfiles(allProfiles.filter((p) => p.id !== mine?.id));
+      setProfiles(allProfiles.filter((p: FlatmateProfile) => p.id !== mine?.id));
       setMyProfile(mine);
       setSentFlicks(new Set(flickIds));
       setRoomShares(allRooms);
+      setSquadMembers(squadProfiles as any || []);
       setLoading(false);
     }
     load();
@@ -443,7 +448,15 @@ export default function FlatmateFeedPage() {
         (r as any).creator?.university === selectedUniv
       );
     }
-    if (maxBudget) {
+    
+    if (selectedSquadId) {
+      const friend = squadMembers.find(m => m.id === selectedSquadId);
+      if (friend) {
+        const baseBudget = parseInt(maxBudget || "10000");
+        const combinedMax = baseBudget + friend.budget_max;
+        filteredRoomShares = filteredRoomShares.filter(r => r.rent_bdt <= combinedMax && (r.available_seats || 1) >= 2);
+      }
+    } else if (maxBudget) {
       filteredRoomShares = filteredRoomShares.filter(r => r.rent_bdt <= parseInt(maxBudget));
     }
   }
@@ -720,6 +733,30 @@ export default function FlatmateFeedPage() {
               <option value="8000">Up to ৳8,000</option>
               <option value="12000">Up to ৳12,000</option>
             </select>
+
+            {tab === "rooms" && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "var(--mint)", padding: "0 10px", borderRadius: "10px", border: "1px solid var(--emerald)" }}>
+                <Users size={16} style={{ color: "var(--forest)" }} />
+                <select 
+                  className="input" 
+                  value={selectedSquadId} 
+                  onChange={e => setSelectedSquadId(e.target.value)} 
+                  disabled={squadMembers.length === 0}
+                  style={{ width: "180px", height: "100%", background: "transparent", border: "none", fontSize: "0.85rem", fontWeight: 700, color: "var(--forest)", cursor: squadMembers.length === 0 ? "not-allowed" : "pointer", paddingLeft: "4px" }}
+                >
+                  {squadMembers.length === 0 ? (
+                    <option value="">No Squad Members</option>
+                  ) : (
+                    <>
+                      <option value="">Squad: Me Only</option>
+                      {squadMembers.map(m => (
+                        <option key={m.id} value={m.id}>+ {m.name} ({(m.budget_max / 1000).toFixed(0)}k)</option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+            )}
           </div>
 
           {loading ? (

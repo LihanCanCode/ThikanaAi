@@ -14,7 +14,7 @@ export interface Profile {
   created_at: string;
 }
 
-export type FurnishingType = "unfurnished" | "semi" | "fully";
+
 export type ListingType = "student" | "family" | "professional";
 export type GenderPref = "male" | "female" | "any";
 
@@ -48,7 +48,7 @@ export interface Listing {
   rooms: number;
   bathrooms: number;
   floor: number | null;
-  furnishing: FurnishingType;
+
   type: ListingType;
   for_gender: GenderPref;
   utilities_included: boolean;
@@ -180,7 +180,7 @@ export interface ParsedSearchQuery {
   min_rent: number | null;
   type: ListingType | null;
   for_gender: GenderPref | null;
-  furnishing: FurnishingType | null;
+
 }
 
 export interface GeneratedListing {
@@ -213,7 +213,7 @@ export interface SearchFilters {
   min_rent?: number;
   max_rent?: number;
   rooms?: number;
-  furnishing?: FurnishingType;
+
   university?: string;
   max_distance_km?: number;
 }
