@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
 export type ChatThread = {
@@ -81,7 +82,7 @@ export async function sendConnectionRequest(targetProfileId: string) {
     title: "New Connection Request",
     message: `${senderName} wants to connect with you on Flatmates!`,
     type: "connection_request",
-    link: "/chat"
+    link: `/chat?threadId=${thread.id}&senderId=${userId}`
   });
 
   return { success: true, thread };
@@ -115,6 +116,22 @@ export async function markNotificationsRead() {
     .eq("read", false);
   
   revalidatePath("/", "layout");
+}
+
+export async function deleteNotification(id: string) {
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData?.user?.id) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", authData.user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/", "layout");
+  return { success: true };
 }
 
 // 3. Get Chat Threads
@@ -154,15 +171,46 @@ export async function getChatThreads() {
 
 // 4. Accept Connection
 export async function acceptConnection(threadId: string) {
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("chat_threads")
-    .update({ status: 'accepted', updated_at: new Date().toISOString() })
-    .eq("id", threadId);
-    
-  if (error) return { error: error.message };
-  revalidatePath("/chat");
-  return { success: true };
+  try {
+    const admin = await createAdminClient();
+    if (!admin) throw new Error("Could not initialize admin client");
+    const { error } = await admin
+      .from("chat_threads")
+      .update({ status: 'accepted', updated_at: new Date().toISOString() })
+      .eq("id", threadId);
+      
+    if (error) {
+      console.error("acceptConnection Supabase error:", error);
+      return { error: error.message };
+    }
+    revalidatePath("/chat");
+    return { success: true };
+  } catch (err: any) {
+    console.error("acceptConnection catch error:", err);
+    return { error: err.message };
+  }
+}
+
+// 4b. Reject Connection
+export async function rejectConnection(threadId: string) {
+  try {
+    const admin = await createAdminClient();
+    if (!admin) throw new Error("Could not initialize admin client");
+    const { error } = await admin
+      .from("chat_threads")
+      .update({ status: 'rejected', updated_at: new Date().toISOString() })
+      .eq("id", threadId);
+      
+    if (error) {
+      console.error("rejectConnection Supabase error:", error);
+      return { error: error.message };
+    }
+    revalidatePath("/chat");
+    return { success: true };
+  } catch (err: any) {
+    console.error("rejectConnection catch error:", err);
+    return { error: err.message };
+  }
 }
 
 // 5. Send Message

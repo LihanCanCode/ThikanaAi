@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { UserCircle, MapPin, Phone, Loader2, Save, GraduationCap, UploadCloud, ShieldCheck, AlertCircle } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
-import { getProfile, updateProfile, verifyStudentIdCard } from "@/app/actions/profile-actions";
+import { getProfile, updateProfile, submitIdCardsForVerification } from "@/app/actions/profile-actions";
 import { toast } from "react-hot-toast";
 import { fadeUp } from "@/lib/animations";
 
@@ -19,8 +19,11 @@ export default function ProfilePage() {
   });
 
   // Verification states
-  const [verifying, setVerifying] = useState(false);
-  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [frontImage, setFrontImage] = useState<string | null>(null);
+  const [backImage, setBackImage] = useState<string | null>(null);
+  const [frontExt, setFrontExt] = useState<string>("");
+  const [backExt, setBackExt] = useState<string>("");
 
   useEffect(() => {
     async function loadData() {
@@ -47,7 +50,6 @@ export default function ProfilePage() {
         toast.error(res.error);
       } else {
         toast.success("Profile updated successfully!");
-        // Refresh local profile state
         const p = await getProfile();
         if (p) setProfile(p);
       }
@@ -58,45 +60,45 @@ export default function ProfilePage() {
     }
   };
 
-  const handleIdUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, side: "front" | "back") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setVerifying(true);
-    setVerificationError(null);
-
-    // Convert file to base64
+    const ext = file.name.split(".").pop() || "jpg";
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    reader.onload = async () => {
-      try {
-        const base64 = reader.result as string;
-        const res = await verifyStudentIdCard(base64, file.type);
-        if (res.success) {
-          toast.success("Student ID verified successfully!");
-          const p = await getProfile();
-          if (p) {
-            setProfile(p);
-            setFormData(prev => ({
-              ...prev,
-              university: p.university || prev.university
-            }));
-          }
-        } else {
-          setVerificationError(res.error || "Verification failed. The card could not be validated.");
-          toast.error(res.error || "Verification failed");
-        }
-      } catch (err: any) {
-        setVerificationError(err.message || "An unexpected error occurred during OCR validation.");
-        toast.error("Verification failed");
-      } finally {
-        setVerifying(false);
+    reader.onload = () => {
+      if (side === "front") {
+        setFrontImage(reader.result as string);
+        setFrontExt(ext);
+      } else {
+        setBackImage(reader.result as string);
+        setBackExt(ext);
       }
     };
-    reader.onerror = () => {
-      setVerificationError("Failed to read the uploaded image file.");
-      setVerifying(false);
-    };
+  };
+
+  const handleVerificationSubmit = async () => {
+    if (!frontImage || !backImage) return;
+    setSubmitting(true);
+    try {
+      const res = await submitIdCardsForVerification(frontImage, backImage, frontExt, backExt);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Documents submitted successfully for admin review!");
+        setFrontImage(null);
+        setBackImage(null);
+        setFrontExt("");
+        setBackExt("");
+        const p = await getProfile();
+        if (p) setProfile(p);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit documents");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -214,7 +216,7 @@ export default function ProfilePage() {
               variants={fadeUp}
               initial="hidden"
               animate="show"
-              className="bg-white rounded-3xl p-8 shadow-[var(--shadow-md)] border border-[var(--border)] flex flex-col h-fit"
+              className="bg-white rounded-3xl p-8 shadow-[var(--shadow-md)] border border-[var(--border)] flex flex-col h-fit animate-fade-in"
             >
               <div className="flex items-center gap-3 mb-6 pb-4 border-b border-[var(--border)]">
                 <div className="w-12 h-12 rounded-full bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
@@ -226,7 +228,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {profile.verified ? (
+              {profile.verification_status === "verified" || profile.verified ? (
                 <div className="bg-[var(--mint)] border border-emerald-200 rounded-2xl p-6 text-center space-y-4">
                   <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-md">
                     <ShieldCheck size={36} />
@@ -238,45 +240,119 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 </div>
+              ) : profile.verification_status === "pending" ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-amber-500 text-white flex items-center justify-center mx-auto shadow-md animate-pulse">
+                    <GraduationCap size={36} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-amber-800 text-lg">Verification Pending Review</h3>
+                    <p className="text-sm text-amber-700 mt-2 leading-relaxed">
+                      Your front and back student ID card documents have been uploaded successfully. Our administration team is manually reviewing your details.
+                    </p>
+                    <p className="text-xs text-amber-600 mt-1 font-semibold">We will update your badge status shortly.</p>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-6">
+                  {profile.verification_status === "rejected" && (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-800 space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-sm">
+                        <AlertCircle size={18} />
+                        Verification Rejected
+                      </div>
+                      <p className="text-xs leading-relaxed">
+                        Reason: <strong className="underline">{profile.verification_reject_reason || "Invalid documents submitted."}</strong>
+                      </p>
+                      <p className="text-[0.7rem] text-red-600 font-medium">Please upload clear, valid front and back photos to submit again.</p>
+                    </div>
+                  )}
+
                   <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                    Upload your official student ID card. Our AI will automatically perform OCR extraction to verify your name, university affiliation, and card validity instantly.
+                    Upload clear photos of the <strong>front</strong> and <strong>back</strong> of your university student ID card. An administrator will manually review and verify your affiliation to grant your badge.
                   </p>
 
-                  {verifying ? (
-                    <div className="border-2 border-dashed border-[var(--primary)] bg-[var(--bg-subtle)] rounded-2xl p-8 text-center space-y-3">
-                      <Loader2 className="animate-spin text-[var(--primary)] mx-auto" size={32} />
-                      <p className="text-sm font-semibold text-[var(--text-primary)]">AI processing student ID...</p>
-                      <p className="text-xs text-[var(--text-secondary)]">Reading credentials, validating status</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* FRONT ID */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-[var(--text-secondary)] block uppercase tracking-wider">
+                        Front Side
+                      </label>
+                      {frontImage ? (
+                        <div className="relative group rounded-2xl overflow-hidden aspect-[3/2] border border-[var(--border)] shadow-sm">
+                          <img src={frontImage} className="w-full h-full object-cover" alt="Front Preview" />
+                          <button 
+                            type="button"
+                            onClick={() => { setFrontImage(null); setFrontExt(""); }}
+                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md active:scale-95 transition-all text-xs"
+                            title="Remove"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] bg-[var(--bg-subtle)] hover:bg-[var(--primary-light)] rounded-2xl p-4 text-center block cursor-pointer transition-all aspect-[3/2] flex flex-col items-center justify-center group">
+                          <UploadCloud className="text-[var(--text-muted)] group-hover:text-[var(--primary)] mb-1 transition-colors" size={24} />
+                          <span className="font-bold text-[11px] text-[var(--text-primary)] group-hover:text-[var(--primary)] transition-colors">
+                            Upload Front
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleImageSelect(e, "front")}
+                          />
+                        </label>
+                      )}
                     </div>
-                  ) : (
-                    <label className="border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] bg-[var(--bg-subtle)] hover:bg-[var(--primary-light)] rounded-2xl p-8 text-center block cursor-pointer transition-all group">
-                      <UploadCloud className="text-[var(--text-muted)] group-hover:text-[var(--primary)] mx-auto mb-3 transition-colors" size={40} />
-                      <span className="font-bold text-sm text-[var(--text-primary)] group-hover:text-[var(--primary)] transition-colors">
-                        Upload ID Card Image
-                      </span>
-                      <span className="block text-xs text-[var(--text-secondary)] mt-1">
-                        PNG, JPG, or JPEG (max 5MB)
-                      </span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleIdUpload}
-                      />
-                    </label>
-                  )}
 
-                  {verificationError && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex gap-3 text-red-800">
-                      <AlertCircle size={20} className="shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-bold text-sm">Verification Failed</p>
-                        <p className="text-xs mt-0.5">{verificationError}</p>
-                      </div>
+                    {/* BACK ID */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-[var(--text-secondary)] block uppercase tracking-wider">
+                        Back Side
+                      </label>
+                      {backImage ? (
+                        <div className="relative group rounded-2xl overflow-hidden aspect-[3/2] border border-[var(--border)] shadow-sm">
+                          <img src={backImage} className="w-full h-full object-cover" alt="Back Preview" />
+                          <button 
+                            type="button"
+                            onClick={() => { setBackImage(null); setBackExt(""); }}
+                            className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 shadow-md active:scale-95 transition-all text-xs"
+                            title="Remove"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="border-2 border-dashed border-[var(--border)] hover:border-[var(--primary)] bg-[var(--bg-subtle)] hover:bg-[var(--primary-light)] rounded-2xl p-4 text-center block cursor-pointer transition-all aspect-[3/2] flex flex-col items-center justify-center group">
+                          <UploadCloud className="text-[var(--text-muted)] group-hover:text-[var(--primary)] mb-1 transition-colors" size={24} />
+                          <span className="font-bold text-[11px] text-[var(--text-primary)] group-hover:text-[var(--primary)] transition-colors">
+                            Upload Back
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleImageSelect(e, "back")}
+                          />
+                        </label>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleVerificationSubmit}
+                    disabled={submitting || !frontImage || !backImage}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white font-bold rounded-xl transition-all shadow-[var(--shadow-sm)] disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                  >
+                    {submitting ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <GraduationCap size={18} />
+                    )}
+                    {submitting ? "Submitting..." : "Submit for Review"}
+                  </button>
                 </div>
               )}
             </motion.div>

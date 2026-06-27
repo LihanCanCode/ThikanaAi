@@ -7,7 +7,7 @@ export async function getFlatmateCandidates(excludeProfileId?: string): Promise<
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("flatmate_profiles")
-    .select("*")
+    .select("*, profiles(verified)")
     .eq("is_active", true)
     .not("user_id", "is", null); // Exclude dummy/seed profiles — real users only!
 

@@ -20,7 +20,7 @@ export default function RoomShareDetailPage({ params }: { params: Promise<{ id: 
       .from("room_shares")
       .select(`
         *,
-        creator:profiles!creator_id(full_name, university)
+        creator:profiles!creator_id(full_name, university, verified)
       `)
       .eq("id", id)
       .single()
@@ -176,7 +176,12 @@ export default function RoomShareDetailPage({ params }: { params: Promise<{ id: 
                   alt="" style={{ width: 52, height: 52, borderRadius: "50%", border: "2px solid var(--primary-light)" }}
                 />
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>{creatorName}</div>
+                  <div style={{ fontWeight: 700, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "4px" }}>
+                    {creatorName}
+                    {creatorProfile.verified && (
+                      <ShieldCheck size={14} style={{ color: "#10b981", flexShrink: 0 }} />
+                    )}
+                  </div>
                   {creatorUniv && <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>🎓 {creatorUniv} Student</div>}
                   {room.created_at && <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "2px" }}>Posted {timeAgo(room.created_at)}</div>}
                 </div>
@@ -269,7 +274,12 @@ export default function RoomShareDetailPage({ params }: { params: Promise<{ id: 
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "1.25rem" }}>
                 <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${room.id}`} alt="" style={{ width: 44, height: 44, borderRadius: "50%", border: "2px solid var(--primary-light)" }} />
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{creatorName}</div>
+                  <div style={{ fontWeight: 600, fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "4px" }}>
+                    {creatorName}
+                    {creatorProfile.verified && (
+                      <ShieldCheck size={14} style={{ color: "#10b981", flexShrink: 0 }} />
+                    )}
+                  </div>
                   {creatorUniv && (
                     <div style={{ fontSize: "0.75rem", color: "var(--success)", display: "flex", alignItems: "center", gap: "3px" }}>
                       <CheckCircle size={11} /> {creatorUniv} Student

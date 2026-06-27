@@ -134,6 +134,8 @@ export default function ListingMap({
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
+    let active = true;
+
     // Remove old varsity marker
     if (univMarkerRef.current) {
       univMarkerRef.current.remove();
@@ -204,6 +206,9 @@ export default function ListingMap({
     const activeListing = listings.find((l) => l.id === activeListingId);
     if (activeListing && activeListing.lat && activeListing.lng) {
       getWalkingRoute([univ.lng, univ.lat], [activeListing.lng, activeListing.lat], token).then((route) => {
+        if (!active) return;
+        if (!mapRef.current || mapRef.current !== map) return;
+
         if (route) {
           const source = map.getSource("route") as mapboxgl.GeoJSONSource | undefined;
           if (source) {
@@ -228,6 +233,10 @@ export default function ListingMap({
         }
       });
     }
+
+    return () => {
+      active = false;
+    };
   }, [selectedUniversityId, activeListingId, listings, token, mapLoaded]);
 
   return (

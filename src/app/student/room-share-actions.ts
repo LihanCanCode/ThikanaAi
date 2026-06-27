@@ -108,7 +108,8 @@ export async function getRoomShares(filters?: {
       *,
       creator:profiles!creator_id(
         full_name,
-        university
+        university,
+        verified
       )
     `)
     .eq("is_available", true)

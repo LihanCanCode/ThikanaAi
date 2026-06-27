@@ -12,6 +12,10 @@ export async function getWalkingRoute(
   end: [number, number],
   token: string
 ): Promise<RouteDetails | null> {
+  if (!token) return null;
+  if (!start || start.length < 2 || isNaN(start[0]) || isNaN(start[1])) return null;
+  if (!end || end.length < 2 || isNaN(end[0]) || isNaN(end[1])) return null;
+
   const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${start[0]},${start[1]};${end[0]},${end[1]}?geometries=geojson&overview=full&access_token=${token}`;
 
   try {

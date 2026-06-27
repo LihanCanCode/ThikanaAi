@@ -280,7 +280,12 @@ function RoomShareCard({
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <img src={creatorAvatar} alt="" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
             <div style={{ lineHeight: 1.1 }}>
-              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-primary)" }}>{creatorName}</div>
+              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "3px" }}>
+                {creatorName}
+                {creatorProfile.verified && (
+                  <ShieldCheck size={12} style={{ color: "#10b981", flexShrink: 0 }} />
+                )}
+              </div>
               <div style={{ fontSize: "0.62rem", color: "var(--text-muted)" }}>{creatorUnivShort} Roommate</div>
             </div>
           </div>

@@ -34,10 +34,36 @@ export async function POST(req: NextRequest) {
   const profileData = (senderProfile?.profile_data ?? {}) as Record<string, unknown>;
   const contactInfo = (profileData.contact_info as string) ?? null;
 
+  let threadId = null;
+  if (status === "accepted") {
+    // Automatically provision a chat thread
+    const { data: existingThread } = await admin
+      .from("chat_threads")
+      .select("id")
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${flick.from_user_id}),and(sender_id.eq.${flick.from_user_id},receiver_id.eq.${user.id})`)
+      .single();
+
+    if (existingThread) {
+      threadId = existingThread.id;
+    } else {
+      const { data: newThread } = await admin
+        .from("chat_threads")
+        .insert({
+          sender_id: flick.from_user_id,
+          receiver_id: user.id,
+          status: "accepted"
+        })
+        .select("id")
+        .single();
+      if (newThread) threadId = newThread.id;
+    }
+  }
+
   return NextResponse.json({
     success: true,
     status,
     contactInfo,
     senderName: senderProfile?.name ?? "Student",
+    threadId,
   });
 }

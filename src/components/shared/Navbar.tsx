@@ -11,7 +11,7 @@ import { getPendingFlicks } from "@/app/student/flatmate-actions";
 import type { PendingFlick } from "@/app/student/flatmate-actions";
 import type { UserRole } from "@/types";
 import { UNIVERSITIES } from "@/lib/utils";
-import { getNotifications, markNotificationsRead } from "@/app/actions/chat-actions";
+import { getNotifications, markNotificationsRead, acceptConnection, rejectConnection, deleteNotification } from "@/app/actions/chat-actions";
 import type { Notification } from "@/app/actions/chat-actions";
 import { MessageCircle } from "lucide-react";
 
@@ -29,25 +29,35 @@ function getDashboardHref(role: UserRole | string | undefined) {
 function NotificationBell({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
   const [flicks, setFlicks] = useState<PendingFlick[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionState, setActionState] = useState<Record<string, "loading" | "accepted" | "declined" | "error">>({});
   const [revealedContact, setRevealedContact] = useState<Record<string, string>>({});
+  const [flickThreadIds, setFlickThreadIds] = useState<Record<string, string>>({});
   const [selectedFlick, setSelectedFlick] = useState<PendingFlick | null>(null);
   const bellRef = useRef<HTMLDivElement>(null);
 
-  const loadFlicks = useCallback(async () => {
-    setLoading(true);
-    const data = await getPendingFlicks();
-    setFlicks(data as PendingFlick[]);
-    setLoading(false);
+  const loadAll = useCallback(async () => {
+    try {
+      const [fData, nData] = await Promise.all([
+        getPendingFlicks(),
+        getNotifications()
+      ]);
+      setFlicks(fData as PendingFlick[]);
+      setNotifications(nData as Notification[]);
+    } catch (e) {
+      console.error("Failed to load notifications:", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    loadFlicks();
-    // Poll every 30s for new flicks
-    const interval = setInterval(loadFlicks, 30000);
+    loadAll();
+    // Poll every 30s for new updates
+    const interval = setInterval(loadAll, 30000);
     return () => clearInterval(interval);
-  }, [loadFlicks]);
+  }, [loadAll]);
 
   useEffect(() => {
     if (!open) return;
@@ -55,13 +65,16 @@ function NotificationBell({ userId }: { userId: string }) {
       if (bellRef.current && !bellRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
+    
+    // Mark general notifications as read when bell is clicked
+    markNotificationsRead();
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
   const handleAction = async (flickId: string, status: "accepted" | "declined") => {
     setActionState((prev) => ({ ...prev, [flickId]: "loading" }));
-    
-    // Call our new API route to avoid server action cookie issues from Client Components
     try {
       const res = await fetch("/student/flick-api", {
         method: "POST",
@@ -76,11 +89,11 @@ function NotificationBell({ userId }: { userId: string }) {
       }
       
       setActionState((prev) => ({ ...prev, [flickId]: status }));
-      if (status === "accepted" && result.contactInfo) {
-        setRevealedContact((prev) => ({ ...prev, [flickId]: result.contactInfo as string }));
+      if (status === "accepted") {
+        if (result.contactInfo) setRevealedContact((prev) => ({ ...prev, [flickId]: result.contactInfo as string }));
+        if (result.threadId) setFlickThreadIds((prev) => ({ ...prev, [flickId]: result.threadId as string }));
       }
       
-      // Keep it in the list for a moment so they can see the contact info or "Declined" state
       if (status === "declined") {
         setTimeout(() => {
           setFlicks((prev) => prev.filter((f) => f.id !== flickId));
@@ -92,7 +105,49 @@ function NotificationBell({ userId }: { userId: string }) {
     }
   };
 
-  const pendingCount = flicks.length;
+  const handleConnectionAction = async (notifId: string, threadId: string, status: "accepted" | "declined") => {
+    setActionState((prev) => ({ ...prev, [notifId]: "loading" }));
+    try {
+      let res;
+      if (status === "accepted") {
+        res = await acceptConnection(threadId);
+      } else {
+        res = await rejectConnection(threadId);
+      }
+      
+      if (res?.error) {
+        setActionState((prev) => ({ ...prev, [notifId]: "error" }));
+        return;
+      }
+      
+      setActionState((prev) => ({ ...prev, [notifId]: status }));
+      
+      if (status === "accepted") {
+        setTimeout(() => {
+          setOpen(false);
+          window.location.href = `/chat?threadId=${threadId}`;
+        }, 1000);
+      } else {
+        setTimeout(() => {
+          setNotifications((prev) => prev.filter((n) => n.id !== notifId));
+        }, 2000);
+      }
+    } catch (e) {
+      setActionState((prev) => ({ ...prev, [notifId]: "error" }));
+    }
+  };
+
+  const handleDeleteNotif = async (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await deleteNotification(id);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const unreadDbCount = notifications.filter(n => !n.read).length;
+  const pendingCount = flicks.length + unreadDbCount;
 
   return (
     <div ref={bellRef} style={{ position: "relative" }}>
@@ -133,7 +188,7 @@ function NotificationBell({ userId }: { userId: string }) {
           {/* Header */}
           <div style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "7px" }}>
-              <Bell size={15} style={{ color: "var(--primary)" }} /> Flick Requests
+              <Bell size={15} style={{ color: "var(--primary)" }} /> Notifications
             </span>
             {pendingCount > 0 && (
               <span style={{ background: "var(--accent)", color: "#fff", fontSize: "0.65rem", fontWeight: 800, padding: "2px 7px", borderRadius: "999px" }}>
@@ -148,76 +203,172 @@ function NotificationBell({ userId }: { userId: string }) {
               <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
                 <Loader2 size={20} style={{ animation: "spin 1s linear infinite", margin: "0 auto" }} />
               </div>
-            ) : flicks.length === 0 ? (
+            ) : flicks.length === 0 && notifications.length === 0 ? (
               <div style={{ padding: "2.5rem 1rem", textAlign: "center" }}>
                 <div style={{ fontSize: "2rem", marginBottom: "8px" }}>🔔</div>
-                <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 500 }}>No pending requests</div>
-                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>When someone sends you a flick, it will appear here.</div>
+                <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 500 }}>No notifications yet</div>
               </div>
             ) : (
-              flicks.map((flick) => {
-                const sender = (flick as any).sender_profile;
-                const senderName = sender?.name ?? "A student";
-                const senderAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${flick.from_user_id}`;
-                const senderUniv = UNIVERSITIES.find((u) => u.id === sender?.university)?.short_name ?? "";
-                const senderProfileData = sender?.profile_data ?? {};
-                const contact = revealedContact[flick.id];
-                const state = actionState[flick.id];
+              <>
+                {/* 1. General notifications (e.g. Connection requests, identity verification status) */}
+                {notifications.map((notif) => {
+                  const isConnectionReq = notif.type === "connection_request";
+                  
+                  // Parse params
+                  const queryStr = notif.link?.split("?")[1] || "";
+                  const threadId = queryStr.split("threadId=")[1]?.split("&")[0] || "";
+                  const senderId = queryStr.split("senderId=")[1]?.split("&")[0] || "";
+                  const state = actionState[notif.id];
 
-                return (
-                  <div key={flick.id} style={{ padding: "0.9rem 1rem", borderBottom: "1px solid var(--border)" }}>
-                    {/* Sender info */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-                      <img src={senderAvatar} alt="" style={{ width: 38, height: 38, borderRadius: "50%", border: "2px solid var(--primary-light)" }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: "0.87rem", color: "var(--text-primary)" }}>{senderName}</div>
-                        <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
-                          {senderUniv && <><GraduationCap size={11} style={{ color: "var(--primary)" }} /> {senderUniv} · </>}
-                          {senderProfileData?.sleep_schedule === "early_bird" ? "🌅 Early Bird" : senderProfileData?.sleep_schedule === "night_owl" ? "🦉 Night Owl" : "😌 Flexible"}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: "0.65rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
-                        wants to team up
-                      </span>
-                    </div>
-
-                    {/* Contact revealed after accept */}
-                    {contact && (
-                      <div style={{ background: "var(--primary-xlight)", border: "1px solid var(--primary-light)", borderRadius: "8px", padding: "8px 12px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <Phone size={13} style={{ color: "var(--primary)", flexShrink: 0 }} />
-                        <div>
-                          <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 600 }}>Contact Info Revealed</div>
-                          <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--primary)" }}>{contact}</div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    {state === "accepted" ? (
-                      <div style={{ fontSize: "0.78rem", color: "var(--success)", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
-                        <CheckCircle size={13} /> Accepted! {!contact && "Contact info not provided"}
-                      </div>
-                    ) : state === "declined" ? (
-                      <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600 }}>Declined</div>
-                    ) : (
+                  const content = (
+                    <div style={{ 
+                      padding: "0.9rem 1rem", 
+                      borderBottom: "1px solid var(--border)", 
+                      background: notif.read ? "transparent" : "var(--primary-xlight)", 
+                      transition: "background 0.15s ease",
+                      position: "relative"
+                    }}>
                       <button
-                        onClick={() => { setSelectedFlick(flick); setOpen(false); }}
-                        style={{
-                          width: "100%", padding: "6px", borderRadius: "8px", border: "1px solid var(--border)",
-                          background: "var(--bg-surface)", color: "var(--primary)",
-                          fontWeight: 700, fontSize: "0.78rem", cursor: "pointer",
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: "5px",
-                          fontFamily: "inherit", transition: "all 0.15s ease"
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--primary-xlight)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-surface)")}
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteNotif(notif.id); }}
+                        style={{ position: "absolute", top: "12px", right: "12px", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", zIndex: 10 }}
+                        aria-label="Delete notification"
                       >
-                        <Search size={12} /> View Profile
+                        <X size={14} />
                       </button>
-                    )}
-                  </div>
-                );
-              })
+                      <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text-primary)", marginBottom: "4px", paddingRight: "20px" }}>
+                        {notif.title}
+                      </div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", lineHeight: 1.4, marginBottom: isConnectionReq ? "10px" : "0" }}>
+                        {notif.message}
+                      </div>
+                      
+                      {isConnectionReq && (
+                        <div>
+                          {state === "accepted" ? (
+                            <div style={{ fontSize: "0.78rem", color: "var(--success)", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
+                              <CheckCircle size={13} /> Connection Request Accepted!
+                            </div>
+                          ) : state === "declined" ? (
+                            <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
+                              <XCircle size={13} /> Connection Request Declined
+                            </div>
+                          ) : state === "error" ? (
+                            <div style={{ fontSize: "0.78rem", color: "var(--accent)", fontWeight: 700 }}>
+                              Error occurred. Try again.
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+                              <button
+                                type="button"
+                                onClick={() => handleConnectionAction(notif.id, threadId, "declined")}
+                                style={{ flex: 1, padding: "6px", fontSize: "0.75rem", fontWeight: 700, borderRadius: "6px", border: "1px solid var(--border)", background: "#fff", cursor: "pointer", color: "var(--text-secondary)" }}
+                              >
+                                Decline
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleConnectionAction(notif.id, threadId, "accepted")}
+                                style={{ flex: 1, padding: "6px", fontSize: "0.75rem", fontWeight: 700, borderRadius: "6px", border: "none", background: "var(--primary)", color: "#fff", cursor: "pointer" }}
+                              >
+                                {state === "loading" ? <Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> : "Accept"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+
+                  if (isConnectionReq) {
+                    return <div key={notif.id}>{content}</div>;
+                  }
+
+                  return (
+                    <Link
+                      href={notif.link || "/chat"}
+                      onClick={() => setOpen(false)}
+                      key={notif.id}
+                      style={{ textDecoration: "none" }}
+                    >
+                      {content}
+                    </Link>
+                  );
+                })}
+
+                {/* 2. Team-Up / Flick Requests */}
+                {flicks.map((flick) => {
+                  const sender = (flick as any).sender_profile;
+                  const senderName = sender?.name ?? "A student";
+                  const senderAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${flick.from_user_id}`;
+                  const senderUniv = UNIVERSITIES.find((u) => u.id === sender?.university)?.short_name ?? "";
+                  const senderProfileData = sender?.profile_data ?? {};
+                  const contact = revealedContact[flick.id];
+                  const state = actionState[flick.id];
+
+                  return (
+                    <div key={flick.id} style={{ padding: "0.9rem 1rem", borderBottom: "1px solid var(--border)" }}>
+                      {/* Sender info */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                        <img src={senderAvatar} alt="" style={{ width: 38, height: 38, borderRadius: "50%", border: "2px solid var(--primary-light)" }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 700, fontSize: "0.87rem", color: "var(--text-primary)" }}>{senderName}</div>
+                          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "4px" }}>
+                            {senderUniv && <><GraduationCap size={11} style={{ color: "var(--primary)" }} /> {senderUniv} · </>}
+                            {senderProfileData?.sleep_schedule === "early_bird" ? "🌅 Early Bird" : senderProfileData?.sleep_schedule === "night_owl" ? "🦉 Night Owl" : "😌 Flexible"}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: "0.65rem", color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                          wants to team up
+                        </span>
+                      </div>
+
+                      {/* Contact revealed after accept */}
+                      {contact && (
+                        <div style={{ background: "var(--primary-xlight)", border: "1px solid var(--primary-light)", borderRadius: "8px", padding: "8px 12px", marginBottom: "8px", display: "flex", alignItems: "center", gap: "8px" }}>
+                          <Phone size={13} style={{ color: "var(--primary)", flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", fontWeight: 600 }}>Contact Info Revealed</div>
+                            <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "var(--primary)" }}>{contact}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      {state === "accepted" ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          <div style={{ fontSize: "0.78rem", color: "var(--success)", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
+                            <CheckCircle size={13} /> Accepted! {!contact && "Contact info not provided"}
+                          </div>
+                          {flickThreadIds[flick.id] && (
+                            <Link href={`/chat?threadId=${flickThreadIds[flick.id]}`} onClick={() => setOpen(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px", padding: "6px", background: "var(--primary)", color: "#fff", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700, textDecoration: "none" }}>
+                              <MessageCircle size={12} /> Chat
+                            </Link>
+                          )}
+                        </div>
+                      ) : state === "declined" ? (
+                        <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600 }}>Declined</div>
+                      ) : (
+                        <button
+                          onClick={() => { setSelectedFlick(flick); setOpen(false); }}
+                          style={{
+                            width: "100%", padding: "6px", borderRadius: "8px", border: "1px solid var(--border)",
+                            background: "var(--bg-surface)", color: "var(--primary)",
+                            fontWeight: 700, fontSize: "0.78rem", cursor: "pointer",
+                            display: "flex", alignItems: "center", gap: "5px",
+                            fontFamily: "inherit", transition: "all 0.15s ease",
+                            justifyContent: "center"
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--primary-xlight)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-surface)")}
+                        >
+                          <Search size={12} /> View Profile
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
             )}
           </div>
 
@@ -316,12 +467,65 @@ function NotificationBell({ userId }: { userId: string }) {
                     </div>
 
                     {/* Contact or Actions */}
-                    {contact ? (
-                      <div style={{ background: "var(--primary-xlight)", border: "2px solid var(--primary-light)", borderRadius: "12px", padding: "1rem", textAlign: "center" }}>
-                        <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 700, marginBottom: "0.5rem" }}>Match Accepted! Contact Info:</div>
-                        <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                          <Phone size={20} /> {contact}
-                        </div>
+                    {contact || flickThreadIds[selectedFlick.id] ? (
+                      <div>
+                        {contact && (
+                          <div style={{ background: "var(--primary-xlight)", border: "2px solid var(--primary-light)", borderRadius: "12px", padding: "1rem", textAlign: "center", marginBottom: flickThreadIds[selectedFlick.id] ? "12px" : "0" }}>
+                            <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 700, marginBottom: "0.5rem" }}>Match Accepted! Contact Info:</div>
+                            <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                              <Phone size={20} /> {contact}
+                            </div>
+                          </div>
+                        )}
+                        {flickThreadIds[selectedFlick.id] && (
+                          <Link href={`/chat?threadId=${flickThreadIds[selectedFlick.id]}`} onClick={() => { setSelectedFlick(null); setOpen(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "12px", background: "var(--primary)", color: "#fff", borderRadius: "12px", fontSize: "1rem", fontWeight: 800, textDecoration: "none", width: "100%" }}>
+                            <MessageCircle size={18} /> Open Chat
+                          </Link>
+                        )}
+                      </div>
+                    ) : (selectedFlick as any).is_connection_request ? (
+                      <div>
+                        {state === "accepted" ? (
+                          <div style={{ textAlign: "center", padding: "1rem", color: "var(--success)", fontWeight: 700 }}>
+                            <CheckCircle size={24} style={{ marginBottom: "8px" }} /><br/>
+                            Connection Request Accepted! Redirecting to chat...
+                          </div>
+                        ) : state === "declined" ? (
+                          <div style={{ textAlign: "center", padding: "1rem", color: "var(--text-muted)", fontWeight: 700 }}>
+                            <XCircle size={24} style={{ marginBottom: "8px" }} /><br/>
+                            Request Declined
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", gap: "12px" }}>
+                            <button
+                              onClick={() => {
+                                handleConnectionAction(selectedFlick.id, (selectedFlick as any).threadId, "declined");
+                                setSelectedFlick(null);
+                              }}
+                              disabled={state === "loading"}
+                              style={{
+                                flex: 1, padding: "12px", borderRadius: "var(--radius)",
+                                border: "2px solid var(--border)", background: "#fff",
+                                color: "var(--text-secondary)", fontWeight: 700, fontSize: "1rem", cursor: "pointer",
+                                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"
+                              }}
+                            >
+                              <XCircle size={18} /> Decline
+                            </button>
+                            <button
+                              onClick={() => handleConnectionAction(selectedFlick.id, (selectedFlick as any).threadId, "accepted")}
+                              disabled={state === "loading"}
+                              style={{
+                                flex: 1, padding: "12px", borderRadius: "var(--radius)",
+                                border: "none", background: "var(--primary)",
+                                color: "#fff", fontWeight: 700, fontSize: "1rem", cursor: "pointer",
+                                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"
+                              }}
+                            >
+                              {state === "loading" ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <><CheckCircle size={18} /> Accept & Chat</>}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : state === "accepted" && !contact ? (
                       <div style={{ textAlign: "center", padding: "1rem", color: "var(--success)", fontWeight: 700 }}>
@@ -375,108 +579,7 @@ function NotificationBell({ userId }: { userId: string }) {
   );
 }
 
-// ── Chat Notifications ────────────────────────────────────────────
-function ChatNotifications({ userId }: { userId: string }) {
-  const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const menuRef = useRef<HTMLDivElement>(null);
 
-  const loadNotifications = useCallback(async () => {
-    const data = await getNotifications();
-    setNotifications(data);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    loadNotifications();
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
-  }, [loadNotifications]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    // Mark as read when opened
-    markNotificationsRead();
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  return (
-    <div ref={menuRef} style={{ position: "relative" }}>
-      <button
-        type="button"
-        onClick={() => { setOpen((p) => !p); setNotifications(prev => prev.map(n => ({...n, read: true}))) }}
-        aria-label="Messages"
-        style={{
-          position: "relative",
-          display: "flex", alignItems: "center",
-          width: 40, height: 40, borderRadius: "50%",
-          border: "1px solid var(--border)",
-          background: open ? "var(--primary-xlight)" : "var(--bg-surface)",
-          cursor: "pointer", transition: "all 0.15s ease",
-          justifyContent: "center"
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-subtle)")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = open ? "var(--primary-xlight)" : "var(--bg-surface)")}
-      >
-        <MessageCircle size={17} color={open ? "var(--primary)" : "var(--text-secondary)"} />
-        {unreadCount > 0 && (
-          <span style={{
-            position: "absolute", top: 5, right: 5,
-            width: 8, height: 8, borderRadius: "50%",
-            background: "var(--accent)", border: "2px solid #fff",
-          }} />
-        )}
-      </button>
-
-      {open && (
-        <div style={{
-          position: "absolute", right: 0, top: "calc(100% + 10px)",
-          width: "320px", background: "var(--bg-surface)",
-          border: "1px solid var(--border)", borderRadius: "var(--radius-lg)",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.14)",
-          zIndex: 300, overflow: "hidden",
-        }}>
-          <div style={{ padding: "0.9rem 1.1rem", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "7px" }}>
-              <MessageCircle size={15} style={{ color: "var(--primary)" }} /> Chat & Connections
-            </span>
-          </div>
-
-          <div style={{ maxHeight: "350px", overflowY: "auto" }}>
-            {loading ? (
-              <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-                <Loader2 size={20} style={{ animation: "spin 1s linear infinite", margin: "0 auto" }} />
-              </div>
-            ) : notifications.length === 0 ? (
-              <div style={{ padding: "2rem 1rem", textAlign: "center" }}>
-                <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", fontWeight: 500 }}>No messages yet</div>
-              </div>
-            ) : (
-              notifications.map((notif) => (
-                <Link href={notif.link || "/chat"} onClick={() => setOpen(false)} key={notif.id} style={{ display: "block", padding: "1rem", borderBottom: "1px solid var(--border)", textDecoration: "none", background: notif.read ? "transparent" : "var(--primary-xlight)" }}>
-                  <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text-primary)", marginBottom: "4px" }}>{notif.title}</div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", lineHeight: 1.4 }}>{notif.message}</div>
-                </Link>
-              ))
-            )}
-          </div>
-          <div style={{ padding: "0.7rem 1rem", borderTop: "1px solid var(--border)", background: "var(--bg-subtle)" }}>
-            <Link href="/chat" onClick={() => setOpen(false)} style={{ fontSize: "0.78rem", color: "var(--primary)", fontWeight: 700, textDecoration: "none" }}>
-              Open Chat Messages →
-            </Link>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── Main Navbar ──────────────────────────────────────────────────
 export default function Navbar() {
@@ -562,7 +665,7 @@ export default function Navbar() {
             </>
           )}
           {(!role || role === "student") && (
-            <NavLink href="/student/finance" icon={<span style={{ fontSize: "15px" }}>💰</span>}>Finance</NavLink>
+            <NavLink href="/student/finance">Finance</NavLink>
           )}
           
           {/* Tools Menu */}
@@ -601,8 +704,23 @@ export default function Navbar() {
               {/* 🔔 Notification Bell — only for students with a profile */}
               {(role === "student" || !role) && <NotificationBell userId={user.id} />}
               
-              {/* 💬 Chat Notifications */}
-              <ChatNotifications userId={user.id} />
+              {/* 💬 Direct Chat Link */}
+              <Link
+                href="/chat"
+                aria-label="Chat"
+                style={{
+                  position: "relative",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 40, height: 40, borderRadius: "50%",
+                  border: "1px solid var(--border)",
+                  background: "var(--bg-surface)",
+                  cursor: "pointer", transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-subtle)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-surface)")}
+              >
+                <MessageCircle size={17} color="var(--text-secondary)" />
+              </Link>
 
               {/* User Menu */}
               <div ref={menuRef} style={{ position: "relative" }}>
@@ -692,7 +810,7 @@ export default function Navbar() {
             </>
           )}
           {(!role || role === "student") && (
-            <MobileNavLink href="/student/finance" onClick={() => setOpen(false)}>💰 Finance Tools</MobileNavLink>
+            <MobileNavLink href="/student/finance" onClick={() => setOpen(false)}>Finance Tools</MobileNavLink>
           )}
           <MobileNavLink href="/listings/estimate" onClick={() => setOpen(false)}>🧮 Rent Estimator</MobileNavLink>
           <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "0.5rem 0" }} />
@@ -735,7 +853,7 @@ export default function Navbar() {
   );
 }
 
-function NavLink({ href, icon, children }: { href: string; icon: React.ReactNode; children: React.ReactNode }) {
+function NavLink({ href, icon, children }: { href: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
     <Link href={href} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "0.4rem 0.75rem", borderRadius: "var(--radius-full)", color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, transition: "all 0.15s ease" }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--primary)"; }}

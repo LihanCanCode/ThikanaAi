@@ -70,6 +70,17 @@ export async function getMyFlatmateProfile(): Promise<FlatmateProfile | null> {
   return data ? rowToFlatmateProfile(data) : null;
 }
 
+export async function getFlatmateProfileByUserId(userId: string): Promise<FlatmateProfile | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("flatmate_profiles")
+    .select("*, profiles(verified)")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return data ? rowToFlatmateProfile(data) : null;
+}
+
 export async function deleteFlatmateProfile() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

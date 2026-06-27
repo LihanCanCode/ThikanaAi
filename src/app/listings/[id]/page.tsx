@@ -25,21 +25,7 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
 
-  useEffect(() => {
-    if (listing && (listing.trust_score === null || listing.trust_score_breakdown === null) && !isScoring) {
-      setIsScoring(true);
-      generateTrustScore(listing.id, "listing").then((res) => {
-        if (res.success && res.score) {
-          setListing(prev => prev ? {
-            ...prev,
-            trust_score: res.score?.totalScore ?? 0,
-            trust_score_breakdown: res.score as any
-          } : prev);
-        }
-        setIsScoring(false);
-      });
-    }
-  }, [listing, isScoring]);
+
 
   useEffect(() => {
     const supabase = createClient();

@@ -46,7 +46,7 @@ export function rowToFlatmateProfile(row: FlatmateProfileRow): FlatmateProfile {
     ideal_flatmate: data.ideal_flatmate ?? "",
     contact_info: data.contact_info,
     avatar: data.avatar as string | undefined,
-    verified: row.profiles?.verified ?? false,
+    verified: (Array.isArray(row.profiles) ? row.profiles[0]?.verified : row.profiles?.verified) ?? false,
   };
 }
 

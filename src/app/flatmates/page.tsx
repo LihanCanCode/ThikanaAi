@@ -115,7 +115,12 @@ function RoomShareCard({
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <img src={creatorAvatar} alt="" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
             <div style={{ lineHeight: 1.1 }}>
-              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-primary)" }}>{creatorName}</div>
+              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "3px" }}>
+                {creatorName}
+                {creatorProfile.verified && (
+                  <ShieldCheck size={12} style={{ color: "#10b981", flexShrink: 0 }} />
+                )}
+              </div>
               <div style={{ fontSize: "0.62rem", color: "var(--text-muted)" }}>{creatorUnivShort} Roommate</div>
             </div>
           </div>
@@ -231,7 +236,22 @@ export default function FlatmatesPage() {
   // Load from DB
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setMyUserId(data?.user?.id || null));
+    supabase.auth.getUser().then(({ data }) => {
+      const uId = data?.user?.id || null;
+      setMyUserId(uId);
+      if (uId) {
+        supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", uId)
+          .single()
+          .then(({ data: pData }) => {
+            if (pData?.full_name) {
+              setFormData(prev => ({ ...prev, name: pData.full_name }));
+            }
+          });
+      }
+    });
 
     async function loadData() {
       try {
@@ -253,7 +273,8 @@ export default function FlatmatesPage() {
             avatar: p.profile_data?.avatar || p.name.charAt(0).toUpperCase(),
             bio: p.profile_data?.bio || "",
             vacant_rooms: (p.profile_data as any)?.vacant_rooms ?? 1,
-            location: (p.profile_data as any)?.location || p.preferred_areas?.[0] || ""
+            location: (p.profile_data as any)?.location || p.preferred_areas?.[0] || "",
+            verified: p.verified
           }));
           setSeekers(mapped);
         } else {
@@ -319,7 +340,8 @@ export default function FlatmatesPage() {
           avatar: res.profile.profile_data?.avatar || formData.name.charAt(0).toUpperCase(),
           bio: res.profile.profile_data?.bio || "",
           vacant_rooms: (res.profile.profile_data as any)?.vacant_rooms ?? formData.vacant_rooms,
-          location: (res.profile.profile_data as any)?.location || formData.location
+          location: (res.profile.profile_data as any)?.location || formData.location,
+          verified: res.profile.verified
         };
         
         // Prepend to top of list instantly
@@ -673,8 +695,8 @@ export default function FlatmatesPage() {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-[var(--slate)] mb-1 block uppercase tracking-wider">Your Name</label>
-                      <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Shakil" className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none text-sm font-bold text-[var(--forest)] transition-colors" />
+                      <label className="text-xs font-semibold text-[var(--slate)] mb-1 block uppercase tracking-wider">Your Name (linked to account)</label>
+                      <input type="text" value={formData.name} readOnly disabled className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl outline-none text-sm font-bold text-[var(--slate)] cursor-not-allowed opacity-80" />
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
@@ -798,7 +820,12 @@ export default function FlatmatesPage() {
                                 )}
                               </div>
                               <div>
-                                <h3 className="font-bold text-[var(--forest)] text-base">{s.name}</h3>
+                                <h3 className="font-bold text-[var(--forest)] text-base flex items-center gap-1">
+                                  {s.name}
+                                  {s.verified && (
+                                    <ShieldCheck size={14} style={{ color: "#10b981", flexShrink: 0 }} />
+                                  )}
+                                </h3>
                                 <div className="flex items-center gap-2 mt-0.5">
                                   <span className="px-2 py-0.5 bg-[var(--mint)] text-[var(--forest)] rounded text-[10px] font-bold tracking-wide">{s.university}</span>
                                   <span className="text-xs text-[var(--slate)] capitalize">{s.gender}</span>

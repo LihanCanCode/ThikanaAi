@@ -240,7 +240,7 @@ export default function NewRoomSharePage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
       <Navbar />
-      <div className="container" style={{ padding: "2rem 1.5rem", maxWidth: "700px" }}>
+      <div className="container" style={{ padding: "2rem 1.5rem", maxWidth: "700px", margin: "0 auto" }}>
         <h1 style={{ fontSize: "1.8rem", fontWeight: 800, marginBottom: "0.5rem", color: "var(--primary)" }}>
           Post an Available Room
         </h1>
