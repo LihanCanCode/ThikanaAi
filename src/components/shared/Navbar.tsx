@@ -54,9 +54,33 @@ function NotificationBell({ userId }: { userId: string }) {
 
   useEffect(() => {
     loadAll();
-    // Poll every 30s for new updates
-    const interval = setInterval(loadAll, 30000);
-    return () => clearInterval(interval);
+    
+    const supabase = createClient();
+    
+    // Supabase Realtime Subscription for instant notifications
+    const channel = supabase
+      .channel('realtime-notifications')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications' },
+        () => {
+          // Refresh data instantly when a notification changes
+          loadAll();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'flatmate_flicks' },
+        () => {
+          // Refresh data instantly when a flick request comes in
+          loadAll();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadAll]);
 
   useEffect(() => {

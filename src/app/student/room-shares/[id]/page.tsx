@@ -2,10 +2,10 @@
 
 import { useState, use, useEffect } from "react";
 import Link from "next/link";
-import { MapPin, Users, Bed, Shield, ShieldCheck, AlertTriangle, ChevronLeft, Phone, CheckCircle, Loader2 } from "lucide-react";
+import { MapPin, Users, Bed, Shield, ShieldCheck, AlertTriangle, ChevronLeft, Phone, CheckCircle, Loader2, Navigation, Footprints, Car } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
 import { createClient } from "@/lib/supabase/client";
-import { formatBDT, timeAgo, UNIVERSITIES } from "@/lib/utils";
+import { formatBDT, timeAgo, UNIVERSITIES, calculateCommute } from "@/lib/utils";
 import type { RoomShare } from "@/app/student/room-share-actions";
 
 export default function RoomShareDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -13,6 +13,7 @@ export default function RoomShareDetailPage({ params }: { params: Promise<{ id: 
   const [room, setRoom] = useState<(RoomShare & { trust_score_breakdown?: any }) | null | undefined>(undefined);
   const [activePhoto, setActivePhoto] = useState(0);
   const [showContact, setShowContact] = useState(false);
+  const [commuteTargetUniv, setCommuteTargetUniv] = useState<string>("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -26,6 +27,9 @@ export default function RoomShareDetailPage({ params }: { params: Promise<{ id: 
       .single()
       .then(({ data, error }) => {
         setRoom(error || !data ? null : (data as any));
+        if (data && !(data as any).error) {
+          setCommuteTargetUniv((data as any).university_restriction || "buet");
+        }
       });
   }, [id]);
 
@@ -65,6 +69,11 @@ export default function RoomShareDetailPage({ params }: { params: Promise<{ id: 
   const creatorName = creatorProfile.full_name ?? "Student Roommate";
   const creatorUniv = UNIVERSITIES.find(u => u.id === creatorProfile.university)?.short_name ?? "";
   const preferredUniv = UNIVERSITIES.find(u => u.id === room.university_restriction);
+
+  const targetUnivObj = UNIVERSITIES.find(u => u.id === commuteTargetUniv);
+  const commuteEst = (room?.lat && room?.lng && targetUnivObj) 
+    ? calculateCommute(room.lat, room.lng, targetUnivObj.lat, targetUnivObj.lng) 
+    : null;
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
@@ -267,6 +276,42 @@ export default function RoomShareDetailPage({ params }: { params: Promise<{ id: 
                 </div>
               )}
             </div>
+
+            {/* Commute Time Visualizer */}
+            {room.lat && room.lng && (
+              <div className="bg-white rounded-2xl border border-[var(--foam)] shadow-[var(--shadow-sm)] p-5 mb-4">
+                <h3 className="text-[0.9rem] font-bold text-[var(--forest)] mb-4 flex items-center gap-2">
+                  <Navigation size={16} /> Commute Time Visualizer
+                </h3>
+                
+                <select 
+                  className="w-full p-2 bg-[var(--mist)] border border-[var(--emerald)]/20 rounded-lg outline-none text-sm font-semibold text-[var(--forest)] mb-4"
+                  value={commuteTargetUniv}
+                  onChange={(e) => setCommuteTargetUniv(e.target.value)}
+                >
+                  {UNIVERSITIES.map(u => (
+                    <option key={u.id} value={u.id}>To {u.short_name} Campus</option>
+                  ))}
+                </select>
+                
+                {commuteEst ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-[var(--mint)]/30 rounded-xl p-3 border border-[var(--emerald)]/20 text-center">
+                      <Footprints size={20} className="mx-auto text-[var(--emerald)] mb-1" />
+                      <div className="font-bold text-lg text-[var(--forest)]">{commuteEst.walkMins} <span className="text-xs">min</span></div>
+                      <div className="text-[0.65rem] text-[var(--slate)] font-semibold uppercase tracking-wider">Walking</div>
+                    </div>
+                    <div className="bg-amber-50 rounded-xl p-3 border border-amber-200/50 text-center">
+                      <Car size={20} className="mx-auto text-amber-500 mb-1" />
+                      <div className="font-bold text-lg text-amber-700">{commuteEst.rickshawMins} <span className="text-xs">min</span></div>
+                      <div className="text-[0.65rem] text-amber-600/70 font-semibold uppercase tracking-wider">Rickshaw</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-center text-[var(--slate)]">Location data unavailable</div>
+                )}
+              </div>
+            )}
 
             {/* Contact Card */}
             <div className="card" style={{ padding: "1.25rem" }}>

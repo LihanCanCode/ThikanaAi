@@ -7,12 +7,12 @@ import {
   MapPin, Bed, Bath, Shield, ChevronLeft, MessageCircle,
   Send, Loader2, Sparkles, CheckCircle, Home, Navigation,
   Clock, Ruler, Star, Eye, Calendar, Phone, Building2,
-  ZoomIn, X, ChevronRight, ChevronDown, Trash2
+  ZoomIn, X, ChevronRight, ChevronDown, Trash2, Footprints, Car
 } from "lucide-react";
 import Navbar from "@/components/shared/Navbar";
 import ListingMap from "@/components/listings/ListingMap";
 import { createClient } from "@/lib/supabase/client";
-import { formatBDT, timeAgo, UNIVERSITIES, getDistanceKm } from "@/lib/utils";
+import { formatBDT, timeAgo, UNIVERSITIES, getDistanceKm, calculateCommute } from "@/lib/utils";
 import type { Listing } from "@/types";
 import { generateTrustScore } from "@/app/actions/ai-trust-score";
 
@@ -100,6 +100,11 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
     : "iut";
 
   const [selectedUniv, setSelectedUniv] = useState(defaultUniv);
+
+  const targetUnivObj = UNIVERSITIES.find(u => u.id === selectedUniv);
+  const commuteEst = (listing?.lat && listing?.lng && targetUnivObj) 
+    ? calculateCommute(listing.lat, listing.lng, targetUnivObj.lat, targetUnivObj.lng) 
+    : null;
 
   if (listing === undefined) {
     return (
@@ -839,6 +844,48 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               )}
             </div>
+
+            {/* Commute Time Visualizer */}
+            {listing.lat && listing.lng && (
+              <div style={{
+                background: "#fff", borderRadius: 16, padding: "1.25rem",
+                boxShadow: "var(--shadow-sm)", border: "1px solid var(--border)",
+              }}>
+                <h3 style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--forest)", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Navigation size={14} style={{ color: "var(--emerald)" }} /> Commute Visualizer
+                </h3>
+                
+                <select 
+                  className="input"
+                  value={selectedUniv}
+                  onChange={(e) => setSelectedUniv(e.target.value)}
+                  style={{ width: "100%", padding: "0.5rem 0.75rem", background: "var(--mist)", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: "0.85rem", fontWeight: 600, color: "var(--forest)", marginBottom: "16px", cursor: "pointer" }}
+                >
+                  {UNIVERSITIES.map(u => (
+                    <option key={u.id} value={u.id}>To {u.short_name} Campus</option>
+                  ))}
+                </select>
+                
+                {commuteEst ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div style={{ background: "linear-gradient(to bottom, #F0FDF4, #DCFCE7)", borderRadius: 12, padding: "12px", border: "1px solid #BBF7D0", textAlign: "center" }}>
+                      <Footprints size={18} style={{ margin: "0 auto 4px", color: "var(--emerald)" }} />
+                      <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "var(--forest)" }}>{commuteEst.walkMins} <span style={{ fontSize: "0.65rem", fontWeight: 600 }}>min</span></div>
+                      <div style={{ fontSize: "0.65rem", color: "var(--slate)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: "2px" }}>Walking</div>
+                    </div>
+                    <div style={{ background: "linear-gradient(to bottom, #FFFBEB, #FEF3C7)", borderRadius: 12, padding: "12px", border: "1px solid #FDE68A", textAlign: "center" }}>
+                      <Car size={18} style={{ margin: "0 auto 4px", color: "#F59E0B" }} />
+                      <div style={{ fontWeight: 800, fontSize: "1.1rem", color: "#92400E" }}>{commuteEst.rickshawMins} <span style={{ fontSize: "0.65rem", fontWeight: 600 }}>min</span></div>
+                      <div style={{ fontSize: "0.65rem", color: "#B45309", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginTop: "2px" }}>Rickshaw</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "0.8rem", color: "var(--stone)", textAlign: "center", padding: "0.5rem 0" }}>
+                    Location data unavailable
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Quick facts */}
             <div style={{

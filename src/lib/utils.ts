@@ -26,6 +26,28 @@ export function getDistanceKm(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+export interface CommuteEstimate {
+  walkMins: number;
+  rickshawMins: number;
+}
+
+/** 
+ * Estimate commute time using straight-line distance, 
+ * applying a 1.3x routing factor for Dhaka roads.
+ */
+export function calculateCommute(lat1: number, lng1: number, lat2: number, lng2: number): CommuteEstimate {
+  const straightLineKm = getDistanceKm(lat1, lng1, lat2, lng2);
+  const roadDistanceKm = straightLineKm * 1.3;
+
+  // Walk: ~5 km/h => 12 mins per km
+  const walkMins = Math.round(roadDistanceKm * 12);
+  
+  // Rickshaw: ~12 km/h => 5 mins per km
+  const rickshawMins = Math.round(roadDistanceKm * 5);
+
+  return { walkMins, rickshawMins };
+}
+
 /** Trust score → color class */
 export function trustColor(score: number): string {
   if (score >= 75) return "trust-high";
