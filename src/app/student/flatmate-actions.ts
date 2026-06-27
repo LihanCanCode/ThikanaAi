@@ -43,7 +43,7 @@ export async function getFlatmateProfiles(): Promise<FlatmateProfile[]> {
 
   const { data, error } = await supabase
     .from("flatmate_profiles")
-    .select("*")
+    .select("*, profiles(verified)")
     .eq("is_active", true)
     .not("user_id", "is", null) // Exclude dummy seed profiles!
     .gte("created_at", thirtyDaysAgo) // Auto-remove profiles older than 1 month
@@ -63,7 +63,7 @@ export async function getMyFlatmateProfile(): Promise<FlatmateProfile | null> {
 
   const { data } = await supabase
     .from("flatmate_profiles")
-    .select("*")
+    .select("*, profiles(verified)")
     .eq("user_id", user.id)
     .maybeSingle();
 

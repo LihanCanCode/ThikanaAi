@@ -11,6 +11,9 @@ export interface FlatmateProfileRow {
   profile_data: Record<string, unknown>;
   is_active: boolean;
   created_at: string;
+  profiles?: {
+    verified: boolean;
+  } | null;
 }
 
 export function rowToFlatmateProfile(row: FlatmateProfileRow): FlatmateProfile {
@@ -43,6 +46,7 @@ export function rowToFlatmateProfile(row: FlatmateProfileRow): FlatmateProfile {
     ideal_flatmate: data.ideal_flatmate ?? "",
     contact_info: data.contact_info,
     avatar: data.avatar as string | undefined,
+    verified: row.profiles?.verified ?? false,
   };
 }
 

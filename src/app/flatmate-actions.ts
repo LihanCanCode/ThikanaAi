@@ -41,6 +41,7 @@ export async function getFlatmateProfiles(): Promise<FlatmateProfile[]> {
     .from("flatmate_profiles")
     .select("*")
     .eq("is_active", true)
+    .not("user_id", "is", null) // Exclude dummy seed profiles
     .order("created_at", { ascending: false });
 
   if (error) {

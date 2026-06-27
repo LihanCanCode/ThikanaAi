@@ -10,11 +10,11 @@ type PhotoScoreResult = {
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
-    if (!apiKey || apiKey.startsWith("placeholder") || !apiKey.startsWith("AIzaSy")) {
+    if (!apiKey || apiKey.startsWith("placeholder") || !(apiKey.startsWith("AIzaSy") || apiKey.startsWith("AQ."))) {
       return NextResponse.json({
         score: 85,
         issues: ["Note: Real AI scoring is disabled (using placeholder or invalid API key)."],
-        suggestion: "Your photo looks good! To enable real AI analysis, add a valid GOOGLE_GEMINI_API_KEY starting with AIzaSy in your .env file."
+        suggestion: "Your photo looks good! To enable real AI analysis, add a valid GOOGLE_GEMINI_API_KEY starting with AIzaSy or AQ. in your .env file."
       });
     }
 
@@ -41,15 +41,22 @@ export async function POST(req: NextRequest) {
       - "suggestion": (string) One actionable tip for the landlord to improve the photo.
     `;
 
-    const result = await geminiFlash.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType
+    const result = await geminiFlash.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType
+              }
+            }
+          ]
         }
-      }
-    ]);
+      ]
+    } as any);
 
     const text = result.response.text();
     const parsed = parseGeminiJSON<PhotoScoreResult>(text);

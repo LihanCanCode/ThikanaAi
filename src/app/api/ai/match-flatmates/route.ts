@@ -73,15 +73,18 @@ async function tryGeminiScore(me: FlatmateProfile, candidates: FlatmateProfile[]
   index: number; score: number; green_flags: string[]; yellow_flags: string[]; summary: string;
 }> | null> {
   const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
-  if (!apiKey || apiKey.startsWith("placeholder") || !apiKey.startsWith("AIzaSy")) return null;
+  if (!apiKey || apiKey.startsWith("placeholder") || !(apiKey.startsWith("AIzaSy") || apiKey.startsWith("AQ."))) return null;
 
   try {
     const { GoogleGenerativeAI } = await import("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
-      generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
-    });
+    const model = genAI.getGenerativeModel(
+      {
+        model: "gemini-1.5-flash",
+        generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
+      },
+      { apiVersion: "v1" }
+    );
 
     const prompt = `You are a flatmate compatibility AI for Thikana (Bangladesh student housing).
 

@@ -415,7 +415,7 @@ function ChatNotifications({ userId }: { userId: string }) {
         aria-label="Messages"
         style={{
           position: "relative",
-          display: "flex", alignItems: "center", justifyCenter: "center",
+          display: "flex", alignItems: "center",
           width: 40, height: 40, borderRadius: "50%",
           border: "1px solid var(--border)",
           background: open ? "var(--primary-xlight)" : "var(--bg-surface)",

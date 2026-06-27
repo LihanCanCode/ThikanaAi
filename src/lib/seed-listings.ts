@@ -32,7 +32,8 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
       photos: { score: 20, note: "Excellent photo evidence." },
       description: { score: 15, note: "Clear description provided." },
       duplicate: { score: 10, note: "Passed NLP duplicate check." },
-      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+      photo_hash: { score: 15, note: "Original photos verified by pHash." },
+      totalScore: 85
     },
     created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
@@ -67,7 +68,8 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
       photos: { score: 20, note: "Excellent photo evidence." },
       description: { score: 15, note: "Clear description provided." },
       duplicate: { score: 10, note: "Passed NLP duplicate check." },
-      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+      photo_hash: { score: 15, note: "Original photos verified by pHash." },
+      totalScore: 85
     },
     created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
@@ -102,7 +104,8 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
       photos: { score: 20, note: "Excellent photo evidence." },
       description: { score: 15, note: "Clear description provided." },
       duplicate: { score: 10, note: "Passed NLP duplicate check." },
-      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+      photo_hash: { score: 15, note: "Original photos verified by pHash." },
+      totalScore: 85
     },
     created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
@@ -136,7 +139,8 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
       photos: { score: 20, note: "Excellent photo evidence." },
       description: { score: 15, note: "Clear description provided." },
       duplicate: { score: 10, note: "Passed NLP duplicate check." },
-      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+      photo_hash: { score: 15, note: "Original photos verified by pHash." },
+      totalScore: 85
     },
     created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
@@ -171,7 +175,8 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
       photos: { score: 20, note: "Excellent photo evidence." },
       description: { score: 15, note: "Clear description provided." },
       duplicate: { score: 10, note: "Passed NLP duplicate check." },
-      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+      photo_hash: { score: 15, note: "Original photos verified by pHash." },
+      totalScore: 85
     },
     created_at: new Date(Date.now() - 4 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
@@ -205,7 +210,8 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
       photos: { score: 20, note: "Excellent photo evidence." },
       description: { score: 15, note: "Clear description provided." },
       duplicate: { score: 10, note: "Passed NLP duplicate check." },
-      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+      photo_hash: { score: 15, note: "Original photos verified by pHash." },
+      totalScore: 85
     },
     created_at: new Date(Date.now() - 7 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
@@ -240,7 +246,8 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
       photos: { score: 20, note: "Excellent photo evidence." },
       description: { score: 15, note: "Clear description provided." },
       duplicate: { score: 10, note: "Passed NLP duplicate check." },
-      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+      photo_hash: { score: 15, note: "Original photos verified by pHash." },
+      totalScore: 85
     },
     created_at: new Date(Date.now() - 1 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
@@ -274,7 +281,8 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
       photos: { score: 20, note: "Excellent photo evidence." },
       description: { score: 15, note: "Clear description provided." },
       duplicate: { score: 10, note: "Passed NLP duplicate check." },
-      photo_hash: { score: 15, note: "Original photos verified by pHash." }
+      photo_hash: { score: 15, note: "Original photos verified by pHash." },
+      totalScore: 85
     },
     created_at: new Date(Date.now() - 6 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),

@@ -85,7 +85,7 @@ export async function saveRoomShare(roomShare: RoomShare) {
   // Fire and forget the AI Trust Score calculation in the background
   // This keeps the UX instant for the user while Gemini processes the photos!
   if (result.data?.id) {
-    generateTrustScore(result.data.id, "room_share").catch((err) => {
+    await generateTrustScore(result.data.id, "room_share").catch((err) => {
       console.error("Failed background AI trust score:", err);
     });
   }

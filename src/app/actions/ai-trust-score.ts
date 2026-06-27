@@ -2,9 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { computeAHash, hammingDistance } from "@/lib/image-hash";
+import { geminiFlash } from "@/lib/gemini";
 
 // ---------------------------------------------------------------------------
-// Area median rents (BDT) — used for Price Anomaly scoring
+// Area median rents (BDT) — used for Price Anomaly scoring fallback
 // ---------------------------------------------------------------------------
 const AREA_MEDIANS: Record<string, number> = {
   "Mirpur-1": 9000,  "Mirpur-2": 10000, "Mirpur-10": 9500,
@@ -64,31 +65,53 @@ function cosineSimilarity(
   return dot / (Math.sqrt(n1) * Math.sqrt(n2));
 }
 
-// ---------------------------------------------------------------------------
-// Core scoring engine — pure deterministic math, zero AI/LLM calls
-// ---------------------------------------------------------------------------
-async function computeTrustScore(item: {
-  id: string;
-  rent_bdt: number;
-  area: string;
-  photos: string[];
-  description_en: string | null;
-  description_bn: string | null;
-  photo_hashes?: string[] | null;
-}): Promise<TrustScoreBreakdown> {
+// Helper to convert Image URL to Base64 Part for Gemini
+async function imageUrlToGenerativePart(url: string) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    let mimeType = response.headers.get("content-type") || "image/jpeg";
+    if (!mimeType.startsWith("image/")) {
+      mimeType = "image/jpeg";
+    }
+    return {
+      inlineData: {
+        data: buffer.toString("base64"),
+        mimeType,
+      },
+    };
+  } catch (error) {
+    console.error(`Error downloading image ${url} for Gemini trust score:`, error);
+    return null;
+  }
+}
 
+// ---------------------------------------------------------------------------
+// Deterministic Scoring Fallback
+// ---------------------------------------------------------------------------
+function computeLocalTrustScore(
+  item: {
+    rent_bdt: number;
+    area: string;
+    photos: string[];
+    description_en: string | null;
+    description_bn: string | null;
+  },
+  maxSim: number,
+  reusedPhoto: boolean
+): TrustScoreBreakdown {
   const breakdown: Partial<TrustScoreBreakdown> = {};
 
-  // ─── 1. Price Anomaly (max 30 pts) ───────────────────────────────────────
+  // 1. Price Anomaly (max 30 pts)
   const median = AREA_MEDIANS[item.area] ?? 12000;
   const ratio  = item.rent_bdt / median;
-
-  let priceScore: number;
-  let priceNote: string;
+  let priceScore = 30;
+  let priceNote = "Rent is within the expected range for this area.";
 
   if (ratio >= 0.5 && ratio <= 2.0) {
     priceScore = 30;
-    priceNote  = "Rent is within the expected range for this area.";
   } else if (ratio >= 0.3 && ratio < 0.5) {
     priceScore = 10;
     priceNote  = "Rent is suspiciously low — verify listing details.";
@@ -101,7 +124,7 @@ async function computeTrustScore(item: {
   }
   breakdown.price = { score: priceScore, note: priceNote };
 
-  // ─── 2. Photo Evidence (max 20 pts, 5 pts per photo) ────────────────────
+  // 2. Photo Evidence (max 20 pts)
   const photoCount = (item.photos ?? []).length;
   const photoScore = Math.min(photoCount * 5, 20);
   breakdown.photos = {
@@ -111,13 +134,9 @@ async function computeTrustScore(item: {
                            : "No photos — significantly reduces trust.",
   };
 
-  // ─── 3. Description Quality (max 20 pts) ────────────────────────────────
-  const descLen = (item.description_en?.length ?? 0)
-                + (item.description_bn?.length ?? 0);
-  const descScore = descLen > 200 ? 20
-                  : descLen > 80  ? 12
-                  : descLen > 0   ? 6
-                                  : 0;
+  // 3. Description Quality (max 20 pts)
+  const descLen = (item.description_en?.length ?? 0) + (item.description_bn?.length ?? 0);
+  const descScore = descLen > 200 ? 20 : descLen > 80 ? 12 : descLen > 0 ? 6 : 0;
   breakdown.description = {
     score: descScore,
     note:  descLen > 200 ? "Detailed description provided."
@@ -126,136 +145,188 @@ async function computeTrustScore(item: {
                          : "No description — greatly reduces trust.",
   };
 
-  // ─── 4 & 5. DB-dependent checks (NLP + pHash) ───────────────────────────
-  let dupScore   = 15;
-  let dupNote    = "Duplicate check skipped.";
-  let pHashScore = 15;
-  let pHashNote  = "Photo hash check skipped.";
+  // 4. Duplicate Check (max 15 pts)
+  const dupScore = maxSim > 0.7 ? 0 : maxSim > 0.4 ? 5 : 15;
+  const dupNote = maxSim > 0.7 ? "High similarity detected — possible duplicate description."
+                : maxSim > 0.4 ? "Similar listing found — verify originality."
+                : "No duplicate description found.";
+  breakdown.duplicate = { score: dupScore, note: dupNote };
 
-  try {
-    const admin = await createClient();
-    if (admin) {
+  // 5. Photo Hash Check (max 15 pts)
+  const pHashScore = reusedPhoto ? 0 : 15;
+  const pHashNote = reusedPhoto ? "Visually identical photo detected in another listing." : "Photos appear visually original.";
+  breakdown.photo_hash = { score: pHashScore, note: pHashNote };
 
-      // ── 4. NLP Duplicate Check (max 15 pts) ───────────────────────────
-      if (item.description_en) {
+  breakdown.totalScore = priceScore + photoScore + descScore + dupScore + pHashScore;
+  return breakdown as TrustScoreBreakdown;
+}
+
+// ---------------------------------------------------------------------------
+// Core scoring engine — Hybrid Local + Gemini Multimodal analysis
+// ---------------------------------------------------------------------------
+async function computeTrustScore(
+  item: {
+    id: string;
+    title_en: string;
+    rent_bdt: number;
+    area: string;
+    photos: string[];
+    description_en: string | null;
+    description_bn: string | null;
+    rooms?: number;
+    furnishing?: string;
+    utilities_included?: boolean;
+  },
+  table: "listings" | "room_shares"
+): Promise<TrustScoreBreakdown> {
+  let maxSim = 0;
+  let reusedPhoto = false;
+
+  const admin = await createClient();
+  if (admin) {
+    // 1. Local NLP Duplicate Check
+    if (item.description_en) {
+      try {
         const { data: otherDescs, error: descErr } = await admin
-          .from("listings")
+          .from(table)
           .select("description_en")
           .neq("id", item.id)
           .limit(300);
 
         if (!descErr && otherDescs) {
           const incomingTf = getTermFrequency(item.description_en);
-          let maxSim = 0;
           for (const row of otherDescs) {
             if (row.description_en) {
               const sim = cosineSimilarity(incomingTf, getTermFrequency(row.description_en));
               if (sim > maxSim) maxSim = sim;
             }
           }
-
-          // Rule: similarity > 0.7 → 0 pts | > 0.4 → 5 pts | else → 15 pts
-          if (maxSim > 0.7) {
-            dupScore = 0;
-            dupNote  = "High similarity detected — possible duplicate description.";
-          } else if (maxSim > 0.4) {
-            dupScore = 5;
-            dupNote  = "Similar listing found — verify originality.";
-          } else {
-            dupScore = 15;
-            dupNote  = "No duplicate description found.";
-          }
-        } else {
-          dupNote = "Duplicate check skipped (DB error).";
         }
-      } else {
-        dupScore = 0;
-        dupNote  = "No description provided for NLP duplicate check.";
+      } catch (err) {
+        console.error("NLP Duplicate Check DB Error:", err);
       }
+    }
 
-      // ── 5. Image Hash Check (max 15 pts) ──────────────────────────────
-      if (item.photos && item.photos.length > 0) {
-        try {
-          // Compute aHash for each photo of this listing
-          const incomingHashes = (
-            await Promise.all(
-              item.photos.map(async (url) => {
-                try { return await computeAHash(url); }
-                catch { return null; }
-              })
-            )
-          ).filter(Boolean) as string[];
+    // 2. Local Photo similarity check using pHash
+    if (item.photos && item.photos.length > 0) {
+      try {
+        const incomingHashes = (
+          await Promise.all(
+            item.photos.map(async (url) => {
+              try { return await computeAHash(url); }
+              catch { return null; }
+            })
+          )
+        ).filter(Boolean) as string[];
 
-          if (incomingHashes.length === 0) {
-            pHashScore = 5;
-            pHashNote  = "Photo similarity check failed (could not fetch images).";
-          } else {
-            // Compare against hashes stored in all other listings
-            const { data: storedRows, error: storedErr } = await admin
-              .from("listings")
-              .select("photo_hashes")
-              .neq("id", item.id)
-              .not("photo_hashes", "is", null);
+        if (incomingHashes.length > 0) {
+          const { data: storedRows, error: storedErr } = await admin
+            .from(table)
+            .select("photo_hashes")
+            .neq("id", item.id)
+            .not("photo_hashes", "is", null);
 
-            if (!storedErr && storedRows) {
-              let reused = false;
-              outer: for (const row of storedRows) {
-                if (!Array.isArray(row.photo_hashes)) continue;
-                for (const storedHash of row.photo_hashes) {
-                  for (const inHash of incomingHashes) {
-                    if (storedHash.length === 64 && inHash.length === 64) {
-                      // Rule: Hamming Distance <= 10 → image is stolen → 0 pts
-                      if (hammingDistance(inHash, storedHash) <= 10) {
-                        reused = true;
-                        break outer;
-                      }
+          if (!storedErr && storedRows) {
+            outer: for (const row of storedRows) {
+              if (!Array.isArray(row.photo_hashes)) continue;
+              for (const storedHash of row.photo_hashes) {
+                for (const inHash of incomingHashes) {
+                  if (storedHash.length === 64 && inHash.length === 64) {
+                    if (hammingDistance(inHash, storedHash) <= 10) {
+                      reusedPhoto = true;
+                      break outer;
                     }
                   }
                 }
               }
-
-              if (reused) {
-                pHashScore = 0;
-                pHashNote  = "Visually identical photo detected in another listing.";
-              } else {
-                pHashScore = 15;
-                pHashNote  = "Photos appear visually original.";
-              }
-            } else {
-              pHashNote = "Photo hash check skipped (DB error).";
             }
           }
-        } catch (err) {
-          console.error("pHash error:", err);
-          pHashScore = 5;
-          pHashNote  = "Photo similarity check failed (runtime error).";
         }
-      } else {
-        pHashScore = 0;
-        pHashNote  = "No photos provided — image hash check skipped.";
+      } catch (err) {
+        console.error("Photo pHash comparison error:", err);
       }
     }
-  } catch (dbErr) {
-    console.error("DB error in computeTrustScore:", dbErr);
-    dupNote   = "Duplicate check unavailable (DB error).";
-    pHashNote = "Photo check unavailable (DB error).";
   }
 
-  breakdown.duplicate   = { score: dupScore,   note: dupNote   };
-  breakdown.photo_hash  = { score: pHashScore,  note: pHashNote };
+  // 3. Call Gemini Multimodal API to audit listing quality and verify photos
+  try {
+    const imageParts = (
+      await Promise.all(
+        (item.photos || []).slice(0, 3).map((url) => imageUrlToGenerativePart(url))
+      )
+    ).filter(Boolean) as any[];
 
-  // ─── Final total (capped at 100) ─────────────────────────────────────────
-  const totalScore = Math.min(
-    priceScore + photoScore + descScore + dupScore + pHashScore,
-    100
-  );
-  breakdown.totalScore = totalScore;
+    const prompt = `You are a real estate trust evaluation AI for Thikana, a housing portal in Dhaka, Bangladesh.
+Analyze the following housing listing details and its attached photos to compute a structured Trust Score breakdown.
 
-  return breakdown as TrustScoreBreakdown;
+Listing Details:
+- Title: "${item.title_en}"
+- Area: "${item.area}"
+- Rent: ${item.rent_bdt} BDT/month
+- Bedrooms: ${item.rooms || 1}
+- Description: "${item.description_en || ""}"
+- Photo Count: ${item.photos.length}
+
+Database Duplication Metrics (computed locally):
+- Max Description Cosine Similarity: ${maxSim.toFixed(2)} (High duplication is >0.70, Moderate is >0.40)
+- Exact/Near-identical Photo Found Reused in Database: ${reusedPhoto ? "Yes" : "No"}
+
+Your job is to rate this listing out of 100 points based on the following 5 categories:
+1. price (max 30 pts): Is the price realistic for the area "${item.area}"? If it is too low (e.g., <8,000 BDT for a 3-bedroom flat in Dhanmondi) or excessively high compared to standard prices, reduce the score. Provide a brief, helpful note explaining your assessment.
+2. photos (max 20 pts): Analyze the visual content of the attached photos. Are they realistic interior/exterior photos of a real Dhaka residential property? If they look like stock photos from Google/Unsplash, high-end 3D architectural renders, or are unrelated/blurry, reduce the score. (Note: if no photos are provided, score is 0).
+3. description (max 20 pts): Is the description detailed, authentic, and helpful for a prospective tenant? Very short or empty descriptions get low scores.
+4. duplicate (max 15 pts): If Max Description Cosine Similarity is >0.7, score must be 0. If >0.4, score must be 5. Otherwise 15.
+5. photo_hash (max 15 pts): If "Exact/Near-identical Photo Found Reused in Database" is "Yes", score must be 0 (indicating plagiarized photos). Otherwise 15.
+
+Response Format:
+Return ONLY a valid JSON object matching the following structure (do not include any markdown fences or extra text):
+{
+  "price": { "score": number, "note": "explanation" },
+  "photos": { "score": number, "note": "explanation" },
+  "description": { "score": number, "note": "explanation" },
+  "duplicate": { "score": number, "note": "explanation" },
+  "photo_hash": { "score": number, "note": "explanation" },
+  "totalScore": number
+}
+`;
+
+    const result = await geminiFlash.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            ...imageParts,
+            { text: prompt }
+          ]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: "application/json"
+      }
+    });
+
+    const responseText = result.response.text().trim();
+    const parsed = JSON.parse(responseText);
+
+    if (
+      parsed.price && 
+      parsed.photos && 
+      parsed.description && 
+      parsed.duplicate && 
+      parsed.photo_hash && 
+      typeof parsed.totalScore === "number"
+    ) {
+      return parsed as TrustScoreBreakdown;
+    }
+    throw new Error("Invalid structure returned by Gemini");
+  } catch (geminiError) {
+    console.error("Gemini Trust Score API failed, falling back to local calculation:", geminiError);
+    return computeLocalTrustScore(item, maxSim, reusedPhoto);
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Public server action — called after listing creation
+// Public server action — called after listing creation or manual recalculation
 // ---------------------------------------------------------------------------
 export async function generateTrustScore(
   itemId: string,
@@ -279,14 +350,34 @@ export async function generateTrustScore(
     }
 
     const breakdown = await computeTrustScore({
-      id:             item.id,
-      rent_bdt:       item.rent_bdt,
-      area:           item.area,
-      photos:         item.photos || [],
-      description_en: item.description_en || null,
-      description_bn: item.description_bn || null,
-      photo_hashes:   item.photo_hashes   || null,
-    });
+      id:                 item.id,
+      title_en:           item.title_en || "Listing",
+      rent_bdt:           item.rent_bdt,
+      area:               item.area,
+      photos:             item.photos || [],
+      description_en:     item.description_en || null,
+      description_bn:     item.description_bn || null,
+      rooms:              item.rooms || 1,
+      furnishing:         item.furnishing || "unfurnished",
+      utilities_included: item.utilities_included || false,
+    }, table);
+
+    // Compute photo hashes to store in database so other listings can compare against them
+    let photoHashes: string[] = [];
+    if (item.photos && item.photos.length > 0) {
+      try {
+        photoHashes = (
+          await Promise.all(
+            item.photos.map(async (url: string) => {
+              try { return await computeAHash(url); }
+              catch { return null; }
+            })
+          )
+        ).filter(Boolean) as string[];
+      } catch (err) {
+        console.error("Failed to compute photo hashes for storage:", err);
+      }
+    }
 
     // Persist back to the database
     await admin
@@ -294,6 +385,7 @@ export async function generateTrustScore(
       .update({
         trust_score:           breakdown.totalScore,
         trust_score_breakdown: breakdown,
+        photo_hashes:          photoHashes,
       })
       .eq("id", itemId);
 

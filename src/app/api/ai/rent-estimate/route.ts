@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const baseMedian = AREA_MEDIANS[safeArea] ?? 11000;
 
     const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
-    const canUseGemini = apiKey && !apiKey.startsWith("placeholder") && apiKey.startsWith("AIzaSy");
+    const canUseGemini = apiKey && !apiKey.startsWith("placeholder") && (apiKey.startsWith("AIzaSy") || apiKey.startsWith("AQ."));
 
     if (canUseGemini) {
       try {

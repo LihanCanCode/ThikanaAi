@@ -1,5 +1,16 @@
 import type { NextConfig } from "next";
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+let supabaseHostname = 'uzqbrydeyjtrorkwfhxr.supabase.co'; // fallback
+
+if (supabaseUrl) {
+  try {
+    supabaseHostname = new URL(supabaseUrl).hostname;
+  } catch (e) {
+    console.error("Failed to parse NEXT_PUBLIC_SUPABASE_URL:", e);
+  }
+}
+
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
@@ -14,7 +25,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'uzqbrydeyjtrorkwfhxr.supabase.co',
+        hostname: supabaseHostname,
       },
     ],
   },

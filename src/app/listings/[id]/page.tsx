@@ -26,7 +26,7 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
   const [isScoring, setIsScoring] = useState(false);
 
   useEffect(() => {
-    if (listing && listing.trust_score === null && !isScoring) {
+    if (listing && (listing.trust_score === null || listing.trust_score_breakdown === null) && !isScoring) {
       setIsScoring(true);
       generateTrustScore(listing.id, "listing").then((res) => {
         if (res.success && res.score) {
@@ -52,11 +52,22 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
       .select("*")
       .eq("id", id)
       .single()
-      .then(({ data, error }) => {
+      .then(async ({ data, error }) => {
         if (error || !data) {
           setListing(null);
         } else {
-          setListing(data as Listing);
+          const listingData = data as any;
+          if (listingData.landlord_id) {
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("full_name, phone, avatar_url, verified")
+              .eq("id", listingData.landlord_id)
+              .single();
+            if (profileData) {
+              listingData.profiles = profileData;
+            }
+          }
+          setListing(listingData as Listing);
         }
       });
   }, [id]);
@@ -557,7 +568,7 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
               </div>
 
               <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
-                {["Is it safe?", "Transport options?", "Nearby markets?", "Good for students?", "Traffic situation?"].map(q => (
+                {["How safe the area is?", "Where is the market located?", "Which wifi service is available here?", "Nearest hospital?", "Transport options?"].map(q => (
                   <button
                     key={q}
                     onClick={() => setQaQuestion(q)}
@@ -690,17 +701,35 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
             }}>
               <h3 style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--forest)", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.06em" }}>Landlord</h3>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{
-                  width: 46, height: 46, borderRadius: "50%",
-                  background: "linear-gradient(135deg, var(--mint), var(--foam))",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "1.4rem", border: "2px solid var(--border)",
-                }}>👤</div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--ink)" }}>Verified Landlord</div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--fern)", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
-                    <CheckCircle size={11} /> Identity Verified
+                {listing.profiles?.avatar_url ? (
+                  <img
+                    src={listing.profiles.avatar_url}
+                    alt={listing.profiles.full_name || "Landlord"}
+                    style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--border)" }}
+                  />
+                ) : (
+                  <div style={{
+                    width: 46, height: 46, borderRadius: "50%",
+                    background: "linear-gradient(135deg, var(--mint), var(--foam))",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "1.4rem", border: "2px solid var(--border)",
+                  }}>
+                    {listing.profiles?.full_name ? listing.profiles.full_name.charAt(0).toUpperCase() : "👤"}
                   </div>
+                )}
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--ink)" }}>
+                    {listing.profiles?.full_name || "Verified Landlord"}
+                  </div>
+                  {listing.profiles?.verified ? (
+                    <div style={{ fontSize: "0.75rem", color: "var(--fern)", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+                      <CheckCircle size={11} style={{ color: "#10b981" }} /> Identity Verified
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: "0.75rem", color: "var(--stone)", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+                      <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--stone)" }} /> Standard Member
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={{ marginTop: "12px", padding: "10px 12px", background: "var(--mist)", borderRadius: 10, fontSize: "0.78rem", color: "var(--slate)" }}>

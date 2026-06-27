@@ -3,34 +3,43 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY!);
 
 /** Fast model for parsing & generation */
-export const geminiFlash = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-  generationConfig: {
-    temperature: 0.3,
-    topP: 0.9,
-    maxOutputTokens: 1024,
+export const geminiFlash = genAI.getGenerativeModel(
+  {
+    model: "gemini-1.5-flash",
+    generationConfig: {
+      temperature: 0.3,
+      topP: 0.9,
+      maxOutputTokens: 1024,
+    },
   },
-});
+  { apiVersion: "v1" }
+);
 
 /** Matching model — higher token limit to score multiple candidates at once */
-export const geminiMatch = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-  generationConfig: {
-    temperature: 0.4,
-    topP: 0.9,
-    maxOutputTokens: 4096,
+export const geminiMatch = genAI.getGenerativeModel(
+  {
+    model: "gemini-1.5-flash",
+    generationConfig: {
+      temperature: 0.4,
+      topP: 0.9,
+      maxOutputTokens: 4096,
+    },
   },
-});
+  { apiVersion: "v1" }
+);
 
 /** Pro model for neighborhood Q&A (grounded) */
-export const geminiPro = genAI.getGenerativeModel({
-  model: "gemini-1.5-pro",
-  generationConfig: {
-    temperature: 0.4,
-    topP: 0.9,
-    maxOutputTokens: 2048,
+export const geminiPro = genAI.getGenerativeModel(
+  {
+    model: "gemini-1.5-pro",
+    generationConfig: {
+      temperature: 0.4,
+      topP: 0.9,
+      maxOutputTokens: 2048,
+    },
   },
-});
+  { apiVersion: "v1" }
+);
 
 /** Parse a JSON response safely from Gemini */
 export function parseGeminiJSON<T>(text: string): T | null {

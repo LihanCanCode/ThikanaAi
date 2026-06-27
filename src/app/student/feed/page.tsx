@@ -56,8 +56,10 @@ function ProfileCard({
     setFlicking(false);
   };
 
+  const initial = profile.name ? profile.name.charAt(0).toUpperCase() : "?";
+
   return (
-    <div className="card" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", height: "100%", transition: "all 0.2s" }}
+    <div className="card" style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem", borderRadius: "16px", border: "1px solid var(--border)", background: "#fff", boxShadow: "var(--shadow-sm)", height: "100%", transition: "all 0.2s" }}
       onMouseEnter={e => {
         (e.currentTarget as HTMLElement).style.transform = "translateY(-4px)";
         (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)";
@@ -68,78 +70,111 @@ function ProfileCard({
       }}>
       
       {/* Top Section */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", marginBottom: "1rem" }}>
-        <img 
-          src={profile.avatar ?? `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.name}`} 
-          alt={profile.name}
-          style={{ width: 60, height: 60, borderRadius: "50%", border: "3px solid var(--primary-light)", flexShrink: 0, objectFit: "cover" }}
-        />
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        {profile.avatar ? (
+          <img 
+            src={profile.avatar} 
+            alt={profile.name}
+            style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }}
+          />
+        ) : (
+          <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#1e3a8a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "bold", fontSize: "1.2rem" }}>
+            {initial}
+          </div>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "4px" }}>
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {profile.name}
-            </h3>
-            {myProfile && (
-              <div style={{ 
-                background: score >= 80 ? "var(--success)" : score >= 60 ? "var(--accent)" : "var(--text-muted)",
-                color: "#fff",
-                padding: "2px 8px", borderRadius: "999px", fontSize: "0.7rem", fontWeight: 700, flexShrink: 0
-              }}>
-                {score}% Match
-              </div>
+          <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}>
+            {profile.name}
+            {profile.verified && (
+              <ShieldCheck size={14} style={{ color: "#10b981", flexShrink: 0 }} />
             )}
+          </h3>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+            <GraduationCap size={14} style={{ color: "var(--text-muted)" }} />
+            <span>{univ?.short_name || profile.university}</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: "4px" }}>
-            <GraduationCap size={13} style={{ color: "var(--primary)" }} /> {univ?.short_name || profile.university}
-          </div>
-          <span className="badge badge-green" style={{ fontSize: "0.68rem", padding: "1px 8px" }}>
-            Seeking Flatmate
-          </span>
         </div>
+        {myProfile && (
+          <div style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981", padding: "4px 10px", borderRadius: "999px", fontSize: "0.75rem", fontWeight: 700 }}>
+            {score}% match
+          </div>
+        )}
       </div>
 
-      {/* Info Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "1rem", background: "var(--bg-subtle)", padding: "8px 12px", borderRadius: "8px" }}>
+      {/* Info Box */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", background: "var(--pearl)", padding: "0.75rem 1rem", borderRadius: "10px" }}>
         <div>
-          <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>Budget limit</div>
-          <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--primary)" }}>
-            {formatBDT(profile.budget_max)}/mo
+          <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Budget</div>
+          <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#166534" }}>
+            {profile.budget_min ? `৳${profile.budget_min.toLocaleString('en-IN')}–` : ""}৳{profile.budget_max.toLocaleString('en-IN')}/mo
           </div>
         </div>
         <div>
-          <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700 }}>Preferred Areas</div>
-          <div style={{ fontSize: "0.8rem", color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {profile.preferred_areas.length > 0 ? profile.preferred_areas.join(", ") : "Any area"}
+          <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Preferred Area</div>
+          <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {profile.preferred_areas && profile.preferred_areas.length > 0 ? profile.preferred_areas.join(", ") : "Any area"}
           </div>
         </div>
       </div>
 
       {/* Tags */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "1.25rem", flex: 1 }}>
-        <span className="badge badge-muted" style={{ background: "var(--bg-muted)", color: "var(--text-secondary)", fontSize: "0.72rem" }}>
-          {profile.sleep_schedule === "early_bird" ? "🌅 Early Bird" : profile.sleep_schedule === "night_owl" ? "🦉 Night Owl" : "😌 Flexible"}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "var(--cloud)", color: "var(--text-secondary)", padding: "4px 10px", borderRadius: "99px", fontSize: "0.75rem", fontWeight: 600 }}>
+          {profile.sleep_schedule === "early_bird" ? "🌅 Flexible" : profile.sleep_schedule === "night_owl" ? "🦉 Night Owl" : "😌 Flexible"}
         </span>
-        <span className="badge badge-muted" style={{ background: "var(--bg-muted)", color: "var(--text-secondary)", fontSize: "0.72rem" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "var(--cloud)", color: "var(--text-secondary)", padding: "4px 10px", borderRadius: "99px", fontSize: "0.75rem", fontWeight: 600 }}>
           {profile.smoking === "non_smoker" ? "🚭 Non-Smoker" : "🚬 Smoker"}
         </span>
-        <span className="badge badge-muted" style={{ background: "var(--bg-muted)", color: "var(--text-secondary)", fontSize: "0.72rem" }}>
-          {profile.cleanliness === "spotless" ? "✨ Very Tidy" : profile.cleanliness === "relaxed" ? "😅 Relaxed" : "🙂 Clean"}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "var(--cloud)", color: "var(--text-secondary)", padding: "4px 10px", borderRadius: "99px", fontSize: "0.75rem", fontWeight: 600 }}>
+          {profile.cleanliness === "spotless" ? "✨ Spotless" : profile.cleanliness === "relaxed" ? "😅 Relaxed" : "🙂 Clean"}
         </span>
       </div>
 
-      {/* Action */}
+      {/* Action Button */}
       <button
         onClick={handleFlick}
         disabled={sent || flicking}
-        className={`btn ${sent ? "btn-outline" : "btn-primary"}`}
-        style={{ width: "100%", justifyContent: "center", padding: "0.55rem", fontSize: "0.85rem" }}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "6px",
+          padding: "0.6rem",
+          borderRadius: "8px",
+          border: "1.5px solid #10b981",
+          background: "transparent",
+          color: "#10b981",
+          fontSize: "0.85rem",
+          fontWeight: 700,
+          cursor: sent || flicking ? "default" : "pointer",
+          transition: "all 0.2s",
+          marginTop: "auto"
+        }}
+        onMouseEnter={e => {
+          if (!sent && !flicking) {
+            e.currentTarget.style.background = "rgba(16, 185, 129, 0.05)";
+          }
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = "transparent";
+        }}
       >
         {flicking ? (
-          <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Sending…</>
+          <>
+            <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+            <span>Sending...</span>
+          </>
         ) : sent ? (
-          <><CheckCircle size={14} style={{ color: "var(--success)" }} /> Flick Sent</>
+          <>
+            <CheckCircle size={14} style={{ color: "#10b981" }} />
+            <span>Flick Sent</span>
+          </>
         ) : (
-          <><Send size={14} /> Send Flick</>
+          <>
+            <Send size={14} />
+            <span>Send Flick</span>
+          </>
         )}
       </button>
     </div>
@@ -251,7 +286,7 @@ function RoomShareCard({
           </div>
 
           <button 
-            onClick={() => setShowContact(!showContact)}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowContact(!showContact); }}
             className="btn btn-primary" 
             style={{ padding: "4px 10px", fontSize: "0.75rem", borderRadius: "8px" }}
           >
@@ -413,119 +448,273 @@ export default function FlatmateFeedPage() {
       <Navbar />
 
       {/* Banner */}
-      <div style={{ background: "var(--primary-xlight)", padding: "3.5rem 1rem", textAlign: "center", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ background: "var(--primary-xlight)", padding: "3rem 1rem 1rem 1rem", textAlign: "center" }}>
         <h1 style={{ fontSize: "2.4rem", fontWeight: 800, marginBottom: "0.5rem", color: "var(--primary)" }}>
           Student Flatmate Hub
         </h1>
         <p style={{ fontSize: "1.1rem", color: "var(--text-secondary)", maxWidth: "600px", margin: "0 auto", marginBottom: "2rem" }}>
-          Find study partners to rent a new flat together, or list a vacant room in your current student home.
+          Find students to rent with, or share a vacant room in your flat.
         </p>
-        
-        <div style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/student/matching" className="btn btn-primary" style={{ padding: "0.75rem 1.5rem", fontSize: "0.92rem", display: "inline-flex", fontWeight: 700 }}>
-            <Sparkles size={16} style={{ marginRight: "6px" }} />
-            {myProfile ? "✏️ Edit My Team-Up Profile" : "Create Team-Up Profile"}
-          </Link>
-          {myProfile && (
-            <button 
-              onClick={handleDeleteProfile} 
-              disabled={deletingProfile}
-              className="btn btn-outline" 
-              style={{ padding: "0.75rem 1.5rem", fontSize: "0.92rem", display: "inline-flex", fontWeight: 700, borderColor: "#FCA5A5", color: "#DC2626" }}
-            >
-              {deletingProfile ? "Deleting..." : "🗑️ Delete Profile"}
-            </button>
-          )}
-          <Link href="/student/room-shares/new" className="btn btn-outline" style={{ background: "#fff", padding: "0.75rem 1.5rem", fontSize: "0.92rem", display: "inline-flex", fontWeight: 700 }}>
-            + Post Available Room
-          </Link>
+
+        {/* Two Selector Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.5rem", maxWidth: "800px", margin: "0 auto" }}>
+          {/* Card 1: Create Team-Up Profile */}
+          <div 
+            onClick={() => setTab("teamup")}
+            style={{
+              background: "#fff",
+              border: tab === "teamup" ? "2.5px solid #166534" : "1px solid #e5e7eb",
+              borderRadius: "16px",
+              padding: "1.25rem",
+              cursor: "pointer",
+              boxShadow: tab === "teamup" ? "var(--shadow-md)" : "var(--shadow-sm)",
+              transition: "all 0.2s",
+              textAlign: "left"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(22, 101, 52, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", color: "#166534", flexShrink: 0 }}>
+                <Users size={20} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Create Team-Up Profile</h3>
+                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "2px 0 0 0" }}>Find flatmates to rent a new place together</p>
+              </div>
+            </div>
+            <div style={{ borderTop: "1px solid #f3f4f6", marginTop: "1rem", paddingTop: "0.5rem", display: "flex", alignItems: "center", gap: "4px", fontSize: "0.78rem", color: "#166534", fontWeight: 600 }}>
+              {myProfile ? (
+                <>
+                  <CheckCircle size={14} style={{ color: "#166534" }} />
+                  <span>Your profile is live · {profiles.length + 1} student{profiles.length + 1 !== 1 ? 's' : ''} found</span>
+                </>
+              ) : (
+                <span>No active profile found</span>
+              )}
+            </div>
+          </div>
+
+          {/* Card 2: Post Available Room */}
+          <div 
+            onClick={() => setTab("rooms")}
+            style={{
+              background: "#fff",
+              border: tab === "rooms" ? "2.5px solid #166534" : "1px solid #e5e7eb",
+              borderRadius: "16px",
+              padding: "1.25rem",
+              cursor: "pointer",
+              boxShadow: tab === "rooms" ? "var(--shadow-md)" : "var(--shadow-sm)",
+              transition: "all 0.2s",
+              textAlign: "left"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(251, 191, 36, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#d97706", flexShrink: 0 }}>
+                <span style={{ fontSize: "1.25rem", fontWeight: "bold" }}>+</span>
+              </div>
+              <div>
+                <h3 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, color: "var(--text-primary)" }}>Post Available Room</h3>
+                <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "2px 0 0 0" }}>List a vacant seat in your existing flat</p>
+              </div>
+            </div>
+            <div style={{ borderTop: "1px solid #f3f4f6", marginTop: "1rem", paddingTop: "0.5rem", fontSize: "0.78rem", color: "var(--text-muted)", fontWeight: 600 }}>
+              <span>{roomShares.length} room{roomShares.length !== 1 ? 's' : ''} currently available</span>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Main Container */}
-      <div className="container" style={{ padding: "2rem 1.5rem", flex: 1, display: "flex", gap: "2rem", flexDirection: "row", alignItems: "flex-start" }}>
+      <div className="container" style={{ padding: "2rem 1.5rem", flex: 1, maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
         
-        {/* Filters Sidebar */}
-        <aside style={{ width: "260px", flexShrink: 0, position: "sticky", top: "80px" }} className="desktop-filters">
-          <div className="card" style={{ padding: "1.5rem" }}>
-            <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "6px" }}>
-              <SlidersHorizontal size={16} style={{ color: "var(--primary)" }} /> Filters
-            </h2>
-            
-            <div style={{ marginBottom: "1.25rem" }}>
-              <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}>Search Name or Area</label>
-              <div style={{ position: "relative" }}>
-                <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                <input 
-                  className="input" 
-                  placeholder={tab === "teamup" ? "Search name, area..." : "Search title, area..."} 
-                  value={query} onChange={e => setQuery(e.target.value)}
-                  style={{ width: "100%", paddingLeft: "32px", fontSize: "0.85rem" }} 
-                />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: "1.25rem" }}>
-              <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}>University</label>
-              <select className="input" value={selectedUniv} onChange={e => setSelectedUniv(e.target.value)} style={{ width: "100%", fontSize: "0.85rem" }}>
-                <option value="">All Universities</option>
-                {UNIVERSITIES.map(u => <option key={u.id} value={u.id}>{u.short_name}</option>)}
-              </select>
-            </div>
-
-            <div style={{ marginBottom: "1.25rem" }}>
-              <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)", marginBottom: "6px" }}>Max Budget (BDT)</label>
-              <select className="input" value={maxBudget} onChange={e => setMaxBudget(e.target.value)} style={{ width: "100%", fontSize: "0.85rem" }}>
-                <option value="">Any Budget</option>
-                <option value="5000">Up to 5,000</option>
-                <option value="8000">Up to 8,000</option>
-                <option value="12000">Up to 12,000</option>
-              </select>
-            </div>
-
-            <button 
-              onClick={() => { setQuery(""); setSelectedUniv(""); setMaxBudget(""); }}
-              className="btn btn-outline" style={{ width: "100%", justifyContent: "center", padding: "0.5rem", fontSize: "0.85rem", background: "#fff" }}>
-              Clear Filters
-            </button>
-          </div>
-        </aside>
-
         {/* Feed Core */}
-        <main style={{ flex: 1 }}>
+        <main style={{ width: "100%" }}>
           
-          {/* Tab Switcher */}
-          <div style={{ display: "flex", background: "var(--bg-subtle)", borderRadius: "var(--radius-lg)", padding: "4px", marginBottom: "1.5rem" }}>
-            <button 
-              onClick={() => setTab("teamup")}
-              style={{
-                flex: 1, padding: "0.6rem", borderRadius: "var(--radius-md)",
-                border: "none", cursor: "pointer", fontFamily: "inherit",
-                fontWeight: 700, fontSize: "0.88rem",
-                background: tab === "teamup" ? "var(--bg-surface)" : "transparent",
-                color: tab === "teamup" ? "var(--primary)" : "var(--text-muted)",
-                boxShadow: tab === "teamup" ? "var(--shadow-sm)" : "none",
-                transition: "all 0.2s",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: "6px"
-              }}
+          {/* Action Banners */}
+          {tab === "teamup" && (
+            myProfile ? (
+              <div style={{
+                background: "#fff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "12px",
+                padding: "1rem 1.5rem",
+                marginBottom: "1.5rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "1rem",
+                boxShadow: "var(--shadow-sm)"
+              }}>
+                <div>
+                  <h4 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--text-primary)" }}>
+                    Your profile is live, {myProfile.name}! 🎉
+                  </h4>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "2px 0 0 0" }}>
+                    Students below can see your profile and send you a Flick.
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: "0.75rem" }}>
+                  <Link 
+                    href="/student/matching" 
+                    className="btn btn-primary"
+                    style={{
+                      padding: "0.5rem 1rem",
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                      background: "#166534",
+                      color: "#fff",
+                      borderRadius: "8px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px"
+                    }}
+                  >
+                    <Sparkles size={14} />
+                    <span>Edit My Profile</span>
+                  </Link>
+                  <button 
+                    onClick={handleDeleteProfile} 
+                    disabled={deletingProfile}
+                    style={{
+                      padding: "0.5rem 1rem",
+                      fontSize: "0.85rem",
+                      fontWeight: 700,
+                      background: "transparent",
+                      border: "1px solid #fca5a5",
+                      color: "#dc2626",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px"
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                background: "#fff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "12px",
+                padding: "1rem 1.5rem",
+                marginBottom: "1.5rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "1rem",
+                boxShadow: "var(--shadow-sm)"
+              }}>
+                <div>
+                  <h4 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--text-primary)" }}>
+                    Create your Team-Up profile to get matched! 👥
+                  </h4>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "2px 0 0 0" }}>
+                    Fill in your lifestyle choices, budget, and university to match with others.
+                  </p>
+                </div>
+                <Link 
+                  href="/student/matching" 
+                  className="btn btn-primary"
+                  style={{
+                    padding: "0.5rem 1rem",
+                    fontSize: "0.85rem",
+                    fontWeight: 700,
+                    background: "#166534",
+                    color: "#fff",
+                    borderRadius: "8px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
+                  }}
+                >
+                  <Sparkles size={14} />
+                  <span>Create My Profile</span>
+                </Link>
+              </div>
+            )
+          )}
+
+          {tab === "rooms" && (
+            <div style={{
+              background: "#fff",
+              border: "1px solid #e5e7eb",
+              borderRadius: "12px",
+              padding: "1rem 1.5rem",
+              marginBottom: "1.5rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "1rem",
+              boxShadow: "var(--shadow-sm)"
+            }}>
+              <div>
+                <h4 style={{ fontSize: "1.1rem", fontWeight: 800, margin: 0, color: "var(--text-primary)" }}>
+                  Have a vacant room or seat in your student flat? 🏠
+                </h4>
+                <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "2px 0 0 0" }}>
+                  List it now to find student roommates from your university.
+                </p>
+              </div>
+              <Link 
+                href="/student/room-shares/new" 
+                className="btn btn-primary"
+                style={{
+                  padding: "0.5rem 1rem",
+                  fontSize: "0.85rem",
+                  fontWeight: 700,
+                  background: "#166534",
+                  color: "#fff",
+                  borderRadius: "8px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}
+              >
+                <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>+</span>
+                <span>Post Available Room</span>
+              </Link>
+            </div>
+          )}
+
+          {/* Inline Filters Bar */}
+          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+            <div style={{ flex: 1, minWidth: "200px", position: "relative" }}>
+              <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+              <input 
+                className="input" 
+                placeholder={tab === "teamup" ? "Search name or area..." : "Search title or area..."} 
+                value={query} 
+                onChange={e => setQuery(e.target.value)}
+                style={{ width: "100%", paddingLeft: "36px", height: "42px", borderRadius: "10px", border: "1px solid var(--border)", fontSize: "0.9rem" }} 
+              />
+            </div>
+
+            <select 
+              className="input" 
+              value={selectedUniv} 
+              onChange={e => setSelectedUniv(e.target.value)} 
+              style={{ width: "220px", height: "42px", borderRadius: "10px", border: "1px solid var(--border)", fontSize: "0.9rem", cursor: "pointer" }}
             >
-              👥 Team-Up Profiles
-            </button>
-            <button 
-              onClick={() => setTab("rooms")}
-              style={{
-                flex: 1, padding: "0.6rem", borderRadius: "var(--radius-md)",
-                border: "none", cursor: "pointer", fontFamily: "inherit",
-                fontWeight: 700, fontSize: "0.88rem",
-                background: tab === "rooms" ? "var(--bg-surface)" : "transparent",
-                color: tab === "rooms" ? "var(--primary)" : "var(--text-muted)",
-                boxShadow: tab === "rooms" ? "var(--shadow-sm)" : "none",
-                transition: "all 0.2s",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: "6px"
-              }}
+              <option value="">All Universities</option>
+              {UNIVERSITIES.map(u => <option key={u.id} value={u.id}>{u.short_name}</option>)}
+            </select>
+
+            <select 
+              className="input" 
+              value={maxBudget} 
+              onChange={e => setMaxBudget(e.target.value)} 
+              style={{ width: "180px", height: "42px", borderRadius: "10px", border: "1px solid var(--border)", fontSize: "0.9rem", cursor: "pointer" }}
             >
-              🔑 Shared Room Postings
-            </button>
+              <option value="">Any Budget</option>
+              <option value="5000">Up to ৳5,000</option>
+              <option value="8000">Up to ৳8,000</option>
+              <option value="12000">Up to ৳12,000</option>
+            </select>
           </div>
 
           {loading ? (
@@ -583,13 +772,6 @@ export default function FlatmateFeedPage() {
           )}
         </main>
       </div>
-
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .container { flex-direction: column !important; }
-          .desktop-filters { width: 100% !important; position: static !important; }
-        }
-      `}</style>
     </div>
   );
 }

@@ -392,7 +392,7 @@ export default function ListPropertyPage() {
       }
 
       if (data?.id) {
-        generateTrustScore(data.id, "listing").catch(console.error);
+        await generateTrustScore(data.id, "listing").catch(console.error);
         router.push(`/listings/${data.id}`);
       }
     } catch (e: any) {
