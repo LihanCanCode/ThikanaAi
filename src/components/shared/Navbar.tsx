@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { User } from "@supabase/supabase-js";
-import { Home, Search, PlusCircle, LayoutDashboard, Menu, X, Users, LogOut, ChevronDown, Bell, CheckCircle, XCircle, Loader2, GraduationCap, Phone, Wrench, UserCircle, Shield, Send } from "lucide-react";
+import { Home, Search, PlusCircle, LayoutDashboard, Menu, X, Users, LogOut, ChevronDown, Bell, CheckCircle, XCircle, Loader2, GraduationCap, Phone, Wrench, UserCircle, Shield, Send, Wallet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { logout } from "@/app/auth/actions";
 import { getPendingFlicks } from "@/app/student/flatmate-actions";
@@ -56,9 +56,9 @@ function NotificationBell({ userId }: { userId: string }) {
 
   useEffect(() => {
     loadAll();
-    
+
     const supabase = createClient();
-    
+
     // Supabase Realtime Subscription for instant notifications
     const channel = supabase
       .channel('realtime-notifications')
@@ -91,11 +91,11 @@ function NotificationBell({ userId }: { userId: string }) {
       if (bellRef.current && !bellRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
-    
+
     // Mark general notifications as read when bell is clicked
     markNotificationsRead();
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    
+
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open]);
 
@@ -108,18 +108,18 @@ function NotificationBell({ userId }: { userId: string }) {
         body: JSON.stringify({ flickId, status })
       });
       const result = await res.json();
-      
+
       if (!res.ok || result.error) {
         setActionState((prev) => ({ ...prev, [flickId]: "error" }));
         return;
       }
-      
+
       setActionState((prev) => ({ ...prev, [flickId]: status }));
       if (status === "accepted") {
         if (result.contactInfo) setRevealedContact((prev) => ({ ...prev, [flickId]: result.contactInfo as string }));
         if (result.threadId) setFlickThreadIds((prev) => ({ ...prev, [flickId]: result.threadId as string }));
       }
-      
+
       if (status === "declined") {
         setTimeout(() => {
           setFlicks((prev) => prev.filter((f) => f.id !== flickId));
@@ -140,14 +140,14 @@ function NotificationBell({ userId }: { userId: string }) {
       } else {
         res = await rejectConnection(threadId);
       }
-      
+
       if (res?.error) {
         setActionState((prev) => ({ ...prev, [notifId]: "error" }));
         return;
       }
-      
+
       setActionState((prev) => ({ ...prev, [notifId]: status }));
-      
+
       if (status === "accepted") {
         setTimeout(() => {
           setOpen(false);
@@ -239,7 +239,7 @@ function NotificationBell({ userId }: { userId: string }) {
                 {/* 1. General notifications (e.g. Connection requests, identity verification status) */}
                 {notifications.map((notif) => {
                   const isConnectionReq = notif.type === "connection_request";
-                  
+
                   // Parse params
                   const queryStr = notif.link?.split("?")[1] || "";
                   const threadId = queryStr.split("threadId=")[1]?.split("&")[0] || "";
@@ -247,10 +247,10 @@ function NotificationBell({ userId }: { userId: string }) {
                   const state = actionState[notif.id];
 
                   const content = (
-                    <div style={{ 
-                      padding: "0.9rem 1rem", 
-                      borderBottom: "1px solid var(--border)", 
-                      background: notif.read ? "transparent" : "var(--primary-xlight)", 
+                    <div style={{
+                      padding: "0.9rem 1rem",
+                      borderBottom: "1px solid var(--border)",
+                      background: notif.read ? "transparent" : "var(--primary-xlight)",
                       transition: "background 0.15s ease",
                       position: "relative"
                     }}>
@@ -268,7 +268,7 @@ function NotificationBell({ userId }: { userId: string }) {
                       <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", lineHeight: 1.4, marginBottom: isConnectionReq ? "10px" : "0" }}>
                         {notif.message}
                       </div>
-                      
+
                       {isConnectionReq && (
                         <div>
                           {state === "accepted" ? (
@@ -513,12 +513,12 @@ function NotificationBell({ userId }: { userId: string }) {
                       <div>
                         {state === "accepted" ? (
                           <div style={{ textAlign: "center", padding: "1rem", color: "var(--success)", fontWeight: 700 }}>
-                            <CheckCircle size={24} style={{ marginBottom: "8px" }} /><br/>
+                            <CheckCircle size={24} style={{ marginBottom: "8px" }} /><br />
                             Connection Request Accepted! Redirecting to chat...
                           </div>
                         ) : state === "declined" ? (
                           <div style={{ textAlign: "center", padding: "1rem", color: "var(--text-muted)", fontWeight: 700 }}>
-                            <XCircle size={24} style={{ marginBottom: "8px" }} /><br/>
+                            <XCircle size={24} style={{ marginBottom: "8px" }} /><br />
                             Request Declined
                           </div>
                         ) : (
@@ -555,12 +555,12 @@ function NotificationBell({ userId }: { userId: string }) {
                       </div>
                     ) : state === "accepted" && !contact ? (
                       <div style={{ textAlign: "center", padding: "1rem", color: "var(--success)", fontWeight: 700 }}>
-                        <CheckCircle size={24} style={{ marginBottom: "8px" }} /><br/>
+                        <CheckCircle size={24} style={{ marginBottom: "8px" }} /><br />
                         Accepted! But they didn't provide contact info.
                       </div>
                     ) : state === "declined" ? (
                       <div style={{ textAlign: "center", padding: "1rem", color: "var(--text-muted)", fontWeight: 700 }}>
-                        <XCircle size={24} style={{ marginBottom: "8px" }} /><br/>
+                        <XCircle size={24} style={{ marginBottom: "8px" }} /><br />
                         Request Declined
                       </div>
                     ) : (
@@ -615,7 +615,7 @@ export default function Navbar() {
   const [profileName, setProfileName] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
-  
+
   // Global Report Modal State
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportCategory, setReportCategory] = useState("Scam / Fake Info");
@@ -694,7 +694,7 @@ export default function Navbar() {
       background: "rgba(255,255,255,0.92)", backdropFilter: "blur(12px)",
       borderBottom: "1px solid var(--border)", position: "sticky", top: 0, zIndex: 100,
     }}>
-      <nav className="container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: "64px" }}>
+      <nav className="container mx-auto" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: "64px", padding: "0 1.5rem" }}>
         {/* Logo */}
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
           <div style={{ width: 36, height: 36, background: "var(--primary)", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -708,10 +708,10 @@ export default function Navbar() {
 
         {/* Desktop Nav */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="desktop-nav">
-          <NavLink href="/listings" icon={<Search size={15} />}>Student Rent</NavLink>
-          <NavLink href="/listings/family" icon={<Search size={15} />}>Family Rent</NavLink>
+          <NavLink href="/listings" icon={<GraduationCap size={15} />} highlight>For Students</NavLink>
+          <NavLink href="/listings/family" icon={<Users size={15} />}>For Families</NavLink>
           {(!role || role === "student") && (
-            <NavLink href="/flatmates" icon={<Users size={15} />}>Find Flatmates</NavLink>
+            <NavLink href="/flatmates" icon={<Search size={15} />}>Find Flatmates</NavLink>
           )}
           {role !== "student" && (
             <>
@@ -720,22 +720,22 @@ export default function Navbar() {
             </>
           )}
           {(!role || role === "student") && (
-            <NavLink href="/student/finance">Finance</NavLink>
+            <NavLink href="/student/finance" icon={<Wallet size={15} />}>Finance</NavLink>
           )}
-          
+
           {/* Tools Menu */}
           <div ref={toolsMenuRef} style={{ position: "relative" }}>
             <button
               type="button"
               onClick={() => setToolsMenuOpen((prev) => !prev)}
               style={{
-                display: "flex", alignItems: "center", gap: "5px", padding: "0.4rem 0.75rem", 
-                borderRadius: "var(--radius-full)", color: "var(--text-secondary)", 
+                display: "flex", alignItems: "center", gap: "5px", padding: "0.4rem 0.75rem",
+                borderRadius: "var(--radius-full)", color: "var(--text-secondary)",
                 background: toolsMenuOpen ? "var(--bg-subtle)" : "transparent",
                 border: "none", cursor: "pointer", fontSize: "0.875rem", fontWeight: 500, transition: "all 0.15s ease"
               }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-subtle)"; e.currentTarget.style.color = "var(--primary)"; }}
-              onMouseLeave={(e) => { if(!toolsMenuOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-secondary)"; } }}
+              onMouseLeave={(e) => { if (!toolsMenuOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-secondary)"; } }}
             >
               <Wrench size={15} /> Tools <ChevronDown size={12} style={{ transform: toolsMenuOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s ease" }} />
             </button>
@@ -758,7 +758,7 @@ export default function Navbar() {
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               {/* 🔔 Notification Bell */}
               <NotificationBell userId={user.id} />
-              
+
               {/* 💬 Direct Chat Link */}
               <Link
                 href="/chat"
@@ -825,7 +825,7 @@ export default function Navbar() {
                       </Link>
                     )}
                     {(!role || role === "student") && (
-                      <button 
+                      <button
                         onClick={() => { setUserMenuOpen(false); setShowReportModal(true); }}
                         style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "0.65rem 0.85rem", borderRadius: "var(--radius-md)", border: "none", background: "transparent", color: "var(--danger)", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(220, 38, 38, 0.1)")}
@@ -863,10 +863,10 @@ export default function Navbar() {
       {/* Mobile Menu */}
       {open && (
         <div style={{ background: "var(--bg-surface)", borderTop: "1px solid var(--border)", padding: "1rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <MobileNavLink href="/listings" onClick={() => setOpen(false)}>🎓 Student Rent</MobileNavLink>
-          <MobileNavLink href="/listings/family" onClick={() => setOpen(false)}>🏠 Family Rent</MobileNavLink>
+          <MobileNavLink href="/listings" onClick={() => setOpen(false)} highlight>🎓 For Students</MobileNavLink>
+          <MobileNavLink href="/listings/family" onClick={() => setOpen(false)}>👥 For Families</MobileNavLink>
           {(!role || role === "student") && (
-            <MobileNavLink href="/flatmates" onClick={() => setOpen(false)}>🤝 Find Flatmates</MobileNavLink>
+            <MobileNavLink href="/flatmates" onClick={() => setOpen(false)}>🔍 Find Flatmates</MobileNavLink>
           )}
           {role !== "student" && (
             <>
@@ -875,7 +875,7 @@ export default function Navbar() {
             </>
           )}
           {(!role || role === "student") && (
-            <MobileNavLink href="/student/finance" onClick={() => setOpen(false)}>Finance Tools</MobileNavLink>
+            <MobileNavLink href="/student/finance" onClick={() => setOpen(false)}>💼 Finance Tools</MobileNavLink>
           )}
           <MobileNavLink href="/listings/estimate" onClick={() => setOpen(false)}>🧮 Rent Estimator</MobileNavLink>
           <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "0.5rem 0" }} />
@@ -897,7 +897,7 @@ export default function Navbar() {
                 <MobileNavLink href={dashboardHref} onClick={() => setOpen(false)}>📊 My Dashboard</MobileNavLink>
               )}
               {(!role || role === "student") && (
-                <button 
+                <button
                   onClick={() => { setOpen(false); setShowReportModal(true); }}
                   style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.65rem 0.75rem", borderRadius: "var(--radius-md)", border: "none", background: "transparent", color: "var(--danger)", fontSize: "0.95rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit", width: "100%" }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(220, 38, 38, 0.1)")}
@@ -934,14 +934,14 @@ export default function Navbar() {
                 <Shield size={24} />
                 Report an Issue
               </h2>
-              <button 
+              <button
                 onClick={() => setShowReportModal(false)}
                 style={{ background: "none", border: "none", cursor: "pointer", color: "var(--stone)" }}
               >
                 <X size={20} />
               </button>
             </div>
-            
+
             <p style={{ fontSize: "0.88rem", color: "var(--slate)", marginBottom: "1.5rem" }}>
               Report an issue with your currently active rented property. Our AI will analyze your report and alert admins if necessary.
             </p>
@@ -949,8 +949,8 @@ export default function Navbar() {
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.5rem" }}>
               <div>
                 <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--forest)", marginBottom: "6px", display: "block" }}>Category</label>
-                <select 
-                  className="input" 
+                <select
+                  className="input"
                   value={reportCategory}
                   onChange={e => setReportCategory(e.target.value)}
                   style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "1px solid var(--border)" }}
@@ -962,11 +962,11 @@ export default function Navbar() {
                   <option>Maintenance Issues</option>
                 </select>
               </div>
-              
+
               <div>
                 <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--forest)", marginBottom: "6px", display: "block" }}>Details</label>
-                <textarea 
-                  className="input" 
+                <textarea
+                  className="input"
                   rows={4}
                   value={reportDescription}
                   onChange={e => setReportDescription(e.target.value)}
@@ -1001,21 +1001,30 @@ export default function Navbar() {
   );
 }
 
-function NavLink({ href, icon, children }: { href: string; icon?: React.ReactNode; children: React.ReactNode }) {
+function NavLink({ href, icon, children, highlight }: { href: string; icon?: React.ReactNode; children: React.ReactNode; highlight?: boolean }) {
+  const baseBg = highlight ? "var(--primary)" : "transparent";
+  const baseColor = highlight ? "white" : "var(--text-secondary)";
+  const hoverBg = highlight ? "var(--primary-hover)" : "var(--bg-subtle)";
+  const hoverColor = highlight ? "white" : "var(--primary)";
+
   return (
-    <Link href={href} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "0.4rem 0.75rem", borderRadius: "var(--radius-full)", color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, transition: "all 0.15s ease" }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"; (e.currentTarget as HTMLElement).style.color = "var(--primary)"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}>
+    <Link href={href} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "0.4rem 0.75rem", borderRadius: "var(--radius-full)", color: baseColor, background: baseBg, textDecoration: "none", fontSize: "0.875rem", fontWeight: highlight ? 600 : 500, transition: "all 0.15s ease" }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = hoverBg; (e.currentTarget as HTMLElement).style.color = hoverColor; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = baseBg; (e.currentTarget as HTMLElement).style.color = baseColor; }}>
       {icon}{children}
     </Link>
   );
 }
 
-function MobileNavLink({ href, children, onClick }: { href: string; children: React.ReactNode; onClick: () => void }) {
+function MobileNavLink({ href, children, onClick, highlight }: { href: string; children: React.ReactNode; onClick: () => void; highlight?: boolean }) {
+  const baseBg = highlight ? "var(--primary-xlight)" : "transparent";
+  const baseColor = highlight ? "var(--primary)" : "var(--text-primary)";
+  const hoverBg = highlight ? "var(--primary-xlight)" : "var(--bg-subtle)";
+
   return (
-    <Link href={href} onClick={onClick} style={{ display: "block", padding: "0.65rem 0.75rem", borderRadius: "var(--radius-md)", color: "var(--text-primary)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 500, transition: "background 0.15s ease" }}
-      onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = "var(--bg-subtle)"}
-      onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+    <Link href={href} onClick={onClick} style={{ display: "block", padding: "0.65rem 0.75rem", borderRadius: "var(--radius-md)", color: baseColor, background: baseBg, textDecoration: "none", fontSize: "0.95rem", fontWeight: highlight ? 700 : 500, transition: "background 0.15s ease" }}
+      onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = hoverBg}
+      onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = baseBg}>
       {children}
     </Link>
   );
