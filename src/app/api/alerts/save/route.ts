@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { area, max_rent, rooms, type, for_gender, furnishing } = body;
+    const { area, max_rent, rooms, type, for_gender } = body;
 
     // Insert into saved_searches
     const { data, error } = await supabase
@@ -24,7 +24,6 @@ export async function POST(req: NextRequest) {
         rooms: rooms || null,
         type: type || null,
         for_gender: for_gender || null,
-        furnishing: furnishing || null,
       })
       .select()
       .single();

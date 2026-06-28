@@ -145,7 +145,7 @@ export default function NewRoomSharePage() {
         rooms: "1",
         bathrooms: "1",
         floor: "3",
-        furnishing: "semi",
+
         type: "student",
         utilities: false,
         notes: `Available room share in student flat. Currently ${form.current_roommates} flatmates living here. Renting out ${form.available_seats} seat/room. Gender: ${form.gender_restriction}. University pref: ${form.university_restriction || "any"}. Notes: ${form.notes}`,

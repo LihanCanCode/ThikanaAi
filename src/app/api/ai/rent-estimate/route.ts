@@ -19,11 +19,11 @@ type RentEstimateResult = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { area, rooms, furnishing, floor } = await req.json();
+    const { area, rooms, floor } = await req.json();
 
     const safeArea = area || "Mirpur-1";
     const safeRooms = Math.max(1, rooms || 1);
-    const safeFurnishing = furnishing || "unfurnished";
+
     const baseMedian = AREA_MEDIANS[safeArea] ?? 11000;
 
     const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
           Provide a realistic monthly rent estimate in BDT for a flat with the following details:
           - Area: ${safeArea}
           - Rooms: ${safeRooms}
-          - Furnishing: ${safeFurnishing}
+
           - Floor: ${floor !== undefined ? floor : "Unknown"}
           
           For reference, the baseline median rent for a standard 1-room unfurnished flat in this area is around ${baseMedian} BDT.
@@ -71,8 +71,7 @@ export async function POST(req: NextRequest) {
     // Fallback: Offline Calculation
     let adjusted = baseMedian * (1 + (safeRooms - 1) * 0.20);
 
-    if (safeFurnishing === "semi") adjusted *= 1.12;
-    else if (safeFurnishing === "fully") adjusted *= 1.28;
+
 
     if (floor !== undefined && floor !== null) {
       if (floor === 0) adjusted *= 0.92; // ground floor

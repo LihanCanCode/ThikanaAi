@@ -174,7 +174,6 @@ async function computeTrustScore(
     description_en: string | null;
     description_bn: string | null;
     rooms?: number;
-    furnishing?: string;
     utilities_included?: boolean;
   },
   table: "listings" | "room_shares"
@@ -358,7 +357,6 @@ export async function generateTrustScore(
       description_en:     item.description_en || null,
       description_bn:     item.description_bn || null,
       rooms:              item.rooms || 1,
-      furnishing:         item.furnishing || "unfurnished",
       utilities_included: item.utilities_included || false,
     }, table);
 

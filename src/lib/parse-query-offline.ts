@@ -120,10 +120,7 @@ export function parseQueryOffline(query: string): Partial<ParsedSearchQuery> {
   if (/\b(?:female|meye|girl|মেয়ে|মহিলা)\b/i.test(q)) filters.for_gender = "female";
   else if (/\b(?:male|chele|boy|ছেলে|পুরুষ)\b/i.test(q)) filters.for_gender = "male";
 
-  // Furnishing
-  if (/\b(?:fully furnished|full furnished|সম্পূর্ণ\s*সুসজ্জিত)\b/i.test(q)) filters.furnishing = "fully";
-  else if (/\b(?:semi|semi-furnished|আংশিক)\b/i.test(q)) filters.furnishing = "semi";
-  else if (/\b(?:unfurnished|empty|অসজ্জিত)\b/i.test(q)) filters.furnishing = "unfurnished";
+
 
   return filters;
 }

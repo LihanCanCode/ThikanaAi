@@ -58,7 +58,7 @@ export default function StudentRentPage() {
     rooms: m.beds,
     bathrooms: m.baths,
     floor: null,
-    furnishing: "semi",
+
     type: "student",
     for_gender: "any",
     utilities_included: false,

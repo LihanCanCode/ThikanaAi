@@ -17,7 +17,7 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     rooms: 2,
     bathrooms: 1,
     floor: 3,
-    furnishing: "semi",
+
     type: "student",
     for_gender: "male",
     utilities_included: false,
@@ -53,7 +53,7 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     rooms: 1,
     bathrooms: 1,
     floor: 2,
-    furnishing: "fully",
+
     type: "student",
     for_gender: "female",
     utilities_included: true,
@@ -89,7 +89,7 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     rooms: 3,
     bathrooms: 2,
     floor: 4,
-    furnishing: "semi",
+
     type: "family",
     for_gender: "any",
     utilities_included: false,
@@ -125,7 +125,7 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     rooms: 1,
     bathrooms: 1,
     floor: 1,
-    furnishing: "unfurnished",
+
     type: "student",
     for_gender: "male",
     utilities_included: false,
@@ -160,7 +160,7 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     rooms: 2,
     bathrooms: 2,
     floor: 5,
-    furnishing: "semi",
+
     type: "professional",
     for_gender: "any",
     utilities_included: false,
@@ -196,7 +196,7 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     rooms: 1,
     bathrooms: 1,
     floor: 2,
-    furnishing: "semi",
+
     type: "student",
     for_gender: "male",
     utilities_included: true,
@@ -231,7 +231,7 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     rooms: 3,
     bathrooms: 3,
     floor: 8,
-    furnishing: "fully",
+
     type: "family",
     for_gender: "any",
     utilities_included: true,
@@ -267,7 +267,7 @@ export const SEED_LISTINGS: Omit<Listing, "profiles">[] = [
     rooms: 2,
     bathrooms: 2,
     floor: 6,
-    furnishing: "fully",
+
     type: "professional",
     for_gender: "any",
     utilities_included: false,

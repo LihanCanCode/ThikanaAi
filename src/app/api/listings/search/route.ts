@@ -16,7 +16,7 @@ function applyFilters(listings: Listing[], filters: SearchFilters, textQuery?: s
   if (filters.for_gender && filters.for_gender !== "any") {
     results = results.filter((l) => l.for_gender === filters.for_gender || l.for_gender === "any");
   }
-  if (filters.furnishing) results = results.filter((l) => l.furnishing === filters.furnishing);
+
 
   if (textQuery?.trim()) {
     const qs = textQuery.toLowerCase();
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     if (filters.for_gender && filters.for_gender !== "any") {
       queryBuilder = queryBuilder.in("for_gender", [filters.for_gender, "any"]);
     }
-    if (filters.furnishing) queryBuilder = queryBuilder.eq("furnishing", filters.furnishing);
+
 
     const { data, error } = await queryBuilder.order("created_at", { ascending: false });
 

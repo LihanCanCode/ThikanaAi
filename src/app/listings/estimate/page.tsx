@@ -11,7 +11,7 @@ import { fadeUp } from "@/lib/animations";
 export default function RentEstimatorPage() {
   const [area, setArea] = useState(DHAKA_AREAS[0]);
   const [rooms, setRooms] = useState(1);
-  const [furnishing, setFurnishing] = useState<"unfurnished"|"semi"|"fully">("unfurnished");
+
   const [floor, setFloor] = useState<number | "">("");
 
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ export default function RentEstimatorPage() {
         body: JSON.stringify({
           area,
           rooms,
-          furnishing,
+
           floor: floor === "" ? null : Number(floor)
         })
       });
@@ -104,26 +104,7 @@ export default function RentEstimatorPage() {
                 </div>
               </div>
 
-              {/* Furnishing */}
-              <div>
-                <label className="text-sm font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Furnishing</label>
-                <div className="flex gap-2">
-                  {(["unfurnished", "semi", "fully"] as const).map(f => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setFurnishing(f)}
-                      className={`flex-1 py-4 rounded-xl font-semibold capitalize transition-all border-2 ${
-                        furnishing === f 
-                          ? "bg-[var(--mint)] border-[var(--emerald)] text-[var(--forest)]" 
-                          : "bg-[var(--mist)] border-transparent text-[var(--stone)] hover:bg-[var(--foam)]"
-                      }`}
-                    >
-                      {f}
-                    </button>
-                  ))}
-                </div>
-              </div>
+
 
               <button 
                 type="submit" 

@@ -37,8 +37,7 @@ Return ONLY valid JSON with these optional fields (null if not mentioned):
   "max_rent": number | null,
   "min_rent": number | null,
   "type": "student" | "family" | "professional" | null,
-  "for_gender": "male" | "female" | "any" | null,
-  "furnishing": "unfurnished" | "semi" | "fully" | null
+  "for_gender": "male" | "female" | "any" | null
 }`;
 
         const result = await geminiFlash.generateContent(prompt);
