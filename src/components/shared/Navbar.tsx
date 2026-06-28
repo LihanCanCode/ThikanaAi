@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { User } from "@supabase/supabase-js";
-import { Home, Search, PlusCircle, LayoutDashboard, Menu, X, Users, LogOut, ChevronDown, Bell, CheckCircle, XCircle, Loader2, GraduationCap, Phone, Wrench, UserCircle } from "lucide-react";
+import { Home, Search, PlusCircle, LayoutDashboard, Menu, X, Users, LogOut, ChevronDown, Bell, CheckCircle, XCircle, Loader2, GraduationCap, Phone, Wrench, UserCircle, Shield, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { logout } from "@/app/auth/actions";
 import { getPendingFlicks } from "@/app/student/flatmate-actions";
@@ -14,6 +14,8 @@ import { UNIVERSITIES } from "@/lib/utils";
 import { getNotifications, markNotificationsRead, acceptConnection, rejectConnection, deleteNotification } from "@/app/actions/chat-actions";
 import type { Notification } from "@/app/actions/chat-actions";
 import { MessageCircle } from "lucide-react";
+import { submitGlobalReport } from "@/app/actions/report-actions";
+import { toast } from "react-hot-toast";
 
 function getInitials(name: string) {
   return name.split(" ").filter(Boolean).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -613,8 +615,37 @@ export default function Navbar() {
   const [profileName, setProfileName] = useState<string | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
+  
+  // Global Report Modal State
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportCategory, setReportCategory] = useState("Scam / Fake Info");
+  const [reportDescription, setReportDescription] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
   const menuRef = useRef<HTMLDivElement>(null);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
+
+  const handleReportSubmit = async () => {
+    if (!reportDescription.trim()) {
+      toast.error("Please provide a description of the issue.");
+      return;
+    }
+    setIsSubmittingReport(true);
+    try {
+      const res = await submitGlobalReport(reportCategory, reportDescription);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Report submitted! AI classified severity as: ${res.severity}`);
+        setShowReportModal(false);
+        setReportDescription("");
+      }
+    } catch (err) {
+      toast.error("Failed to submit report.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
+  };
 
   useEffect(() => {
     const supabase = createClient();
@@ -725,8 +756,8 @@ export default function Navbar() {
 
           {user ? (
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              {/* 🔔 Notification Bell — only for students with a profile */}
-              {(role === "student" || !role) && <NotificationBell userId={user.id} />}
+              {/* 🔔 Notification Bell */}
+              <NotificationBell userId={user.id} />
               
               {/* 💬 Direct Chat Link */}
               <Link
@@ -793,6 +824,16 @@ export default function Navbar() {
                         <LayoutDashboard size={16} /> Dashboard
                       </Link>
                     )}
+                    {(!role || role === "student") && (
+                      <button 
+                        onClick={() => { setUserMenuOpen(false); setShowReportModal(true); }}
+                        style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "0.65rem 0.85rem", borderRadius: "var(--radius-md)", border: "none", background: "transparent", color: "var(--danger)", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(220, 38, 38, 0.1)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <Shield size={16} /> Report Your House
+                      </button>
+                    )}
                     <form action={logout}>
                       <button type="submit" style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "0.65rem 0.85rem", borderRadius: "var(--radius-md)", border: "none", background: "transparent", color: "#DC2626", fontSize: "0.875rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = "#FEE2E2")}
@@ -855,6 +896,16 @@ export default function Navbar() {
               {role !== "student" && (
                 <MobileNavLink href={dashboardHref} onClick={() => setOpen(false)}>📊 My Dashboard</MobileNavLink>
               )}
+              {(!role || role === "student") && (
+                <button 
+                  onClick={() => { setOpen(false); setShowReportModal(true); }}
+                  style={{ display: "flex", alignItems: "center", gap: "8px", padding: "0.65rem 0.75rem", borderRadius: "var(--radius-md)", border: "none", background: "transparent", color: "var(--danger)", fontSize: "0.95rem", fontWeight: 500, cursor: "pointer", fontFamily: "inherit", width: "100%" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(220, 38, 38, 0.1)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  🛡️ Report Your House
+                </button>
+              )}
               <form action={logout}>
                 <button type="submit" className="btn btn-outline" style={{ width: "100%", justifyContent: "center", color: "#DC2626", borderColor: "#FECACA" }}>Sign Out</button>
               </form>
@@ -866,6 +917,79 @@ export default function Navbar() {
             </>
           )}
         </div>
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && typeof document !== 'undefined' && createPortal(
+        <div
+          onClick={() => setShowReportModal(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 100000, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 24, padding: "2rem", maxWidth: 500, width: "100%", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", border: "1px solid var(--border)", maxHeight: "90vh", overflowY: "auto" }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--danger)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                <Shield size={24} />
+                Report an Issue
+              </h2>
+              <button 
+                onClick={() => setShowReportModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--stone)" }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p style={{ fontSize: "0.88rem", color: "var(--slate)", marginBottom: "1.5rem" }}>
+              Report an issue with your currently active rented property. Our AI will analyze your report and alert admins if necessary.
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.5rem" }}>
+              <div>
+                <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--forest)", marginBottom: "6px", display: "block" }}>Category</label>
+                <select 
+                  className="input" 
+                  value={reportCategory}
+                  onChange={e => setReportCategory(e.target.value)}
+                  style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "1px solid var(--border)" }}
+                >
+                  <option>Scam / Fake Info</option>
+                  <option>Hygiene / Pests</option>
+                  <option>Landlord Behavior</option>
+                  <option>Safety / Security</option>
+                  <option>Maintenance Issues</option>
+                </select>
+              </div>
+              
+              <div>
+                <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--forest)", marginBottom: "6px", display: "block" }}>Details</label>
+                <textarea 
+                  className="input" 
+                  rows={4}
+                  value={reportDescription}
+                  onChange={e => setReportDescription(e.target.value)}
+                  placeholder="Please describe the issue in detail..."
+                  style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "1px solid var(--border)", resize: "none" }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleReportSubmit}
+              disabled={isSubmittingReport}
+              style={{ width: "100%", background: "var(--danger)", color: "#fff", border: "none", borderRadius: 14, padding: "1rem", fontWeight: 700, fontSize: "1.05rem", cursor: isSubmittingReport ? "not-allowed" : "pointer", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", opacity: isSubmittingReport ? 0.7 : 1 }}
+            >
+              {isSubmittingReport ? (
+                <><Loader2 size={18} className="animate-spin" /> Analyzing & Submitting...</>
+              ) : (
+                <>Submit Verified Report <Send size={16} /></>
+              )}
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
 
       <style jsx>{`

@@ -14,7 +14,9 @@ import {
   X, 
   Phone, 
   ArrowLeft, 
-  FileText 
+  FileText,
+  MapPin,
+  CheckCircle
 } from "lucide-react";
 import { 
   getProfile, 
@@ -23,6 +25,8 @@ import {
   adminRejectUser, 
   getAdminDashboardStats 
 } from "@/app/actions/profile-actions";
+import { getAllAcceptedRentals } from "@/app/actions/rental-actions";
+import { getAdminReports, updateReportStatus, resolveReportWithActions } from "@/app/actions/report-actions";
 import { toast } from "react-hot-toast";
 import { fadeUp } from "@/lib/animations";
 
@@ -32,9 +36,21 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  const [rentals, setRentals] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
   const [actioningUser, setActioningUser] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null); // userId
+
+  // Report Resolution Modal
+  const [showResolveModal, setShowResolveModal] = useState<any>(null); // report object
+  const [resolveForm, setResolveForm] = useState({
+    deductScore: 0,
+    suspendListings: false,
+    sendWarning: false,
+    terminateContract: false,
+    adminNotes: ""
+  });
 
   // Loaded image overlay/zoom
   const [zoomImage, setZoomImage] = useState<string | null>(null);
@@ -62,13 +78,17 @@ export default function AdminDashboard() {
   }, []);
 
   const refreshData = async () => {
-    const [statsRes, pendingRes] = await Promise.all([
+    const [statsRes, pendingRes, rentalsRes, reportsRes] = await Promise.all([
       getAdminDashboardStats(),
-      getPendingVerifications()
+      getPendingVerifications(),
+      getAllAcceptedRentals(),
+      getAdminReports()
     ]);
 
     if (statsRes.success) setStats(statsRes.stats);
     if (pendingRes.success && pendingRes.users) setPendingUsers(pendingRes.users);
+    if (rentalsRes.success && rentalsRes.rentals) setRentals(rentalsRes.rentals);
+    if (reportsRes.success && reportsRes.reports) setReports(reportsRes.reports);
   };
 
   const handleVerify = async (userId: string) => {
@@ -105,6 +125,53 @@ export default function AdminDashboard() {
         toast.success("Student verification rejected.");
         setShowRejectModal(null);
         setRejectReason("");
+        await refreshData();
+      }
+    } catch (err) {
+      toast.error("An error occurred");
+    } finally {
+      setActioningUser(null);
+    }
+  };
+
+  const handleReportAction = async (reportId: string, status: "reviewed" | "resolved" | "dismissed") => {
+    setActioningUser(reportId);
+    try {
+      const res = await updateReportStatus(reportId, status);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Report marked as ${status}`);
+        await refreshData();
+      }
+    } catch (err) {
+      toast.error("An error occurred");
+    } finally {
+      setActioningUser(null);
+    }
+  };
+
+  const handleResolveSubmit = async () => {
+    if (!showResolveModal) return;
+    const report = showResolveModal;
+    setActioningUser(report.id);
+    try {
+      const res = await resolveReportWithActions(
+        report.id,
+        report.owner_id,
+        report.reporter_id,
+        resolveForm.deductScore,
+        resolveForm.suspendListings,
+        resolveForm.sendWarning,
+        resolveForm.terminateContract,
+        resolveForm.adminNotes
+      );
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Report resolved and actions executed successfully!");
+        setShowResolveModal(null);
+        setResolveForm({ deductScore: 0, suspendListings: false, sendWarning: false, terminateContract: false, adminNotes: "" });
         await refreshData();
       }
     } catch (err) {
@@ -352,6 +419,194 @@ export default function AdminDashboard() {
             </div>
           )}
         </section>
+
+        {/* ACTIVE RENTALS PANEL */}
+        <section className="bg-white rounded-3xl border border-[var(--border)] shadow-sm overflow-hidden mt-8">
+          <div className="p-6 border-b border-[var(--border)] flex items-center justify-between">
+            <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <Home className="text-[var(--emerald)]" size={22} />
+              Active Rentals Database
+            </h2>
+            <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">
+              {rentals.length} Total Bookings
+            </span>
+          </div>
+
+          {rentals.length === 0 ? (
+            <div className="p-12 text-center space-y-3">
+              <div className="w-16 h-16 bg-[var(--mist)] text-[var(--text-muted)] rounded-full flex items-center justify-center mx-auto">
+                <Home size={32} />
+              </div>
+              <h3 className="font-bold text-[var(--text-primary)]">No Active Rentals</h3>
+              <p className="text-sm text-[var(--text-secondary)] max-w-sm mx-auto">
+                There are no accepted rental requests in the system yet.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[var(--mist)] text-[var(--text-secondary)] text-xs uppercase tracking-wider">
+                    <th className="p-4 font-bold border-b border-[var(--border)]">Listing / Property</th>
+                    <th className="p-4 font-bold border-b border-[var(--border)]">Tenant (Student)</th>
+                    <th className="p-4 font-bold border-b border-[var(--border)]">Landlord / Owner</th>
+                    <th className="p-4 font-bold border-b border-[var(--border)]">Status & Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)] text-sm">
+                  {rentals.map((rental) => (
+                    <tr key={rental.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4">
+                        <div className="font-bold text-[var(--text-primary)]">{rental.listing?.title_en || rental.room_share?.title_en}</div>
+                        <div className="text-xs text-[var(--text-secondary)] flex items-center gap-1 mt-1">
+                          <MapPin size={12} /> {rental.listing?.address || rental.room_share?.address}
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">
+                            {rental.student?.full_name ? rental.student.full_name.charAt(0) : "S"}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-[var(--text-primary)]">{rental.student?.full_name || "Unknown"}</div>
+                            <div className="text-xs text-[var(--text-secondary)]">{rental.student?.university}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="font-semibold text-[var(--text-primary)]">{rental.owner?.full_name || "Unknown"}</div>
+                        <div className="text-xs text-[var(--text-secondary)]">{rental.owner?.phone}</div>
+                      </td>
+                      <td className="p-4">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                          <CheckCircle size={12} /> Booked
+                        </span>
+                        <div className="text-xs text-[var(--text-muted)] mt-1">
+                          {new Date(rental.updated_at).toLocaleDateString()}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* REPORTS AND DISPUTES PANEL */}
+        <section className="bg-white rounded-3xl border border-[var(--border)] shadow-sm overflow-hidden mt-8">
+          <div className="p-6 border-b border-[var(--border)] flex items-center justify-between">
+            <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <AlertTriangle className="text-[var(--danger)]" size={22} />
+              Tenant Reports & Disputes
+            </h2>
+            <span className="text-xs font-bold bg-red-100 text-red-800 px-3 py-1 rounded-full">
+              {reports.filter(r => r.status === 'pending').length} Action Required
+            </span>
+          </div>
+
+          {reports.length === 0 ? (
+            <div className="p-12 text-center space-y-3">
+              <div className="w-16 h-16 bg-[var(--mist)] text-[var(--text-muted)] rounded-full flex items-center justify-center mx-auto">
+                <ShieldCheck size={32} />
+              </div>
+              <h3 className="font-bold text-[var(--text-primary)]">All Clear!</h3>
+              <p className="text-sm text-[var(--text-secondary)] max-w-sm mx-auto">
+                No active reports or disputes found in the system.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--border)]">
+              {reports.map((report) => (
+                <div key={report.id} className="p-6 flex flex-col lg:flex-row gap-6">
+                  {/* Left: Info */}
+                  <div className="lg:w-[70%] space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        report.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                        report.severity === 'high' ? 'bg-orange-100 text-orange-700' :
+                        report.severity === 'medium' ? 'bg-amber-100 text-amber-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {report.severity.toUpperCase()} SEVERITY
+                      </span>
+                      <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                        {report.category}
+                      </span>
+                      <span className="text-xs text-[var(--text-muted)]">
+                        {new Date(report.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <p className="text-sm text-[var(--text-primary)] bg-[var(--mist)] p-4 rounded-xl border border-[var(--border)]">
+                      "{report.description}"
+                    </p>
+
+                    <div className="flex items-center gap-6 mt-4 pt-2">
+                      <div className="text-sm">
+                        <span className="text-xs text-[var(--text-muted)] block mb-1">Reported By (Tenant)</span>
+                        <div className="font-semibold text-[var(--text-primary)]">{report.reporter?.full_name}</div>
+                        <div className="text-xs text-[var(--text-secondary)]">{report.reporter?.phone}</div>
+                      </div>
+                      <div className="w-px h-10 bg-[var(--border)]"></div>
+                      <div className="text-sm">
+                        <span className="text-xs text-[var(--text-muted)] block mb-1">Target Owner</span>
+                        <div className="font-semibold text-[var(--text-primary)]">{report.owner?.full_name}</div>
+                        <div className="text-xs text-[var(--text-secondary)]">{report.owner?.phone}</div>
+                      </div>
+                      <div className="w-px h-10 bg-[var(--border)]"></div>
+                      <div className="text-sm">
+                        <span className="text-xs text-[var(--text-muted)] block mb-1">Property</span>
+                        <div className="font-semibold text-[var(--text-primary)] truncate max-w-[150px]">{report.target_title || "Unknown Property"}</div>
+                        <div className="text-xs text-[var(--text-secondary)] uppercase">{report.target_type.replace('_', ' ')}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Actions */}
+                  <div className="lg:w-[30%] flex flex-col gap-2 justify-center border-l border-[var(--border)] pl-6">
+                    {report.status === 'pending' ? (
+                      <>
+                        <button
+                          onClick={() => setShowResolveModal(report)}
+                          disabled={actioningUser !== null}
+                          className="w-full bg-[var(--danger)] hover:bg-red-600 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition-all"
+                        >
+                          Take Action & Resolve
+                        </button>
+                        <button
+                          onClick={() => handleReportAction(report.id, "dismissed")}
+                          disabled={actioningUser !== null}
+                          className="w-full bg-[var(--mist)] hover:bg-[var(--border)] text-[var(--text-primary)] font-bold py-2.5 px-4 rounded-xl transition-all"
+                        >
+                          Dismiss Report
+                        </button>
+                        <p className="text-xs text-center text-[var(--text-muted)] mt-2">
+                          Note: Critical/High severity automatically applies a trust score penalty.
+                        </p>
+                      </>
+                    ) : (
+                      <div className="text-center p-4 bg-[var(--mist)] rounded-xl border border-[var(--border)] flex flex-col items-center justify-center h-full">
+                        <div className="font-bold text-[var(--text-primary)] mb-1">
+                          Status: {report.status.toUpperCase()}
+                        </div>
+                        <div className="text-xs text-[var(--text-secondary)]">
+                          Handled on {new Date(report.updated_at).toLocaleDateString()}
+                        </div>
+                        {report.admin_notes && (
+                          <div className="w-full text-left text-xs bg-white p-3 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] mt-3">
+                            <span className="font-bold text-[var(--text-primary)] block mb-1">Admin Notes:</span>
+                            {report.admin_notes}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </main>
 
       {/* REJECTION MODAL */}
@@ -400,6 +655,117 @@ export default function AdminDashboard() {
                   className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl transition-all shadow-md"
                 >
                   {actioningUser ? <Loader2 className="animate-spin mx-auto" size={18} /> : "Submit Rejection"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* REPORT RESOLUTION MODAL */}
+      <AnimatePresence>
+        {showResolveModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 max-w-lg w-full border border-[var(--border)] shadow-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-[var(--danger)] flex items-center gap-2">
+                  <ShieldCheck size={20} /> Resolve Report
+                </h3>
+                <button 
+                  onClick={() => setShowResolveModal(null)}
+                  className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="bg-[var(--mist)] p-4 rounded-xl border border-[var(--border)] mb-6 text-sm">
+                <p className="font-bold text-[var(--text-primary)] mb-1">Target Owner: {showResolveModal.owner?.full_name}</p>
+                <p className="text-[var(--text-secondary)]">AI Severity: <strong className="uppercase">{showResolveModal.severity}</strong></p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-bold text-[var(--text-primary)] mb-1 block">Manual Trust Score Penalty</label>
+                  <p className="text-xs text-[var(--text-muted)] mb-2">Deduct points from all properties owned by this landlord.</p>
+                  <input 
+                    type="number" 
+                    min="0" max="100"
+                    value={resolveForm.deductScore}
+                    onChange={(e) => setResolveForm({ ...resolveForm, deductScore: parseInt(e.target.value) || 0 })}
+                    className="w-full p-3 bg-white border border-[var(--border)] rounded-xl outline-none focus:border-[var(--primary)] text-sm"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 border border-[var(--border)] rounded-xl">
+                  <div>
+                    <label className="text-sm font-bold text-[var(--text-primary)] block">Suspend Properties</label>
+                    <p className="text-xs text-[var(--text-muted)]">Hide all listings from the public feed.</p>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    className="w-5 h-5 accent-[var(--danger)]"
+                    checked={resolveForm.suspendListings}
+                    onChange={(e) => setResolveForm({ ...resolveForm, suspendListings: e.target.checked })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 border border-[var(--border)] rounded-xl">
+                  <div>
+                    <label className="text-sm font-bold text-[var(--text-primary)] block">Issue Official Warning</label>
+                    <p className="text-xs text-[var(--text-muted)]">Send a system notification to the landlord.</p>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    className="w-5 h-5 accent-[var(--primary)]"
+                    checked={resolveForm.sendWarning}
+                    onChange={(e) => setResolveForm({ ...resolveForm, sendWarning: e.target.checked })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 border border-[var(--border)] rounded-xl">
+                  <div>
+                    <label className="text-sm font-bold text-[var(--text-primary)] block">Terminate Contract</label>
+                    <p className="text-xs text-[var(--text-muted)]">Cancel the tenant's current rental immediately.</p>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    className="w-5 h-5 accent-[var(--danger)]"
+                    checked={resolveForm.terminateContract}
+                    onChange={(e) => setResolveForm({ ...resolveForm, terminateContract: e.target.checked })}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-[var(--text-primary)] mb-1 block">Admin Resolution Notes</label>
+                  <textarea
+                    rows={3}
+                    value={resolveForm.adminNotes}
+                    onChange={(e) => setResolveForm({ ...resolveForm, adminNotes: e.target.value })}
+                    placeholder="E.g. Called landlord, applied 10 pt penalty."
+                    className="w-full p-3 bg-white border border-[var(--border)] rounded-xl outline-none focus:border-[var(--primary)] text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-6 mt-2 border-t border-[var(--border)]">
+                <button
+                  onClick={() => setShowResolveModal(null)}
+                  className="flex-1 py-3 bg-[var(--mist)] hover:bg-[var(--border)] text-[var(--text-primary)] font-bold rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResolveSubmit}
+                  disabled={actioningUser !== null}
+                  className="flex-1 py-3 bg-[var(--danger)] hover:bg-red-600 text-white font-bold rounded-xl transition-all shadow-md flex justify-center items-center gap-2"
+                >
+                  {actioningUser ? <Loader2 className="animate-spin" size={18} /> : <>Execute Actions <CheckCircle size={18} /></>}
                 </button>
               </div>
             </motion.div>

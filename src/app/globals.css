@@ -50,6 +50,12 @@
   --primary-hover: var(--jade);
   --primary-light: var(--mint);
   --primary-xlight: var(--mist);
+  
+  /* Status Colors */
+  --success: #10B981; /* emerald-500 */
+  --warning: #F59E0B; /* amber-500 */
+  --danger:  #EF4444; /* red-500 */
+
   --text-primary: var(--ink);
   --text-secondary: var(--slate);
   --text-muted: var(--stone);

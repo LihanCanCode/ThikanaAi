@@ -15,6 +15,9 @@ import { createClient } from "@/lib/supabase/client";
 import { formatBDT, timeAgo, UNIVERSITIES, getDistanceKm, calculateCommute } from "@/lib/utils";
 import type { Listing } from "@/types";
 import { generateTrustScore } from "@/app/actions/ai-trust-score";
+import { submitRentalRequest } from "@/app/actions/rental-actions";
+import { checkEligibilityToReport, submitReport } from "@/app/actions/report-actions";
+import { toast } from "react-hot-toast";
 
 export default function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -24,6 +27,26 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [isScoring, setIsScoring] = useState(false);
+
+  // Rental Request States
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [contractAccepted, setContractAccepted] = useState(false);
+  const [isSubmittingRentalRequest, setIsSubmittingRentalRequest] = useState(false);
+
+  // Reporting States
+  const [isTenant, setIsTenant] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportCategory, setReportCategory] = useState("Scam / Fake Info");
+  const [reportDescription, setReportDescription] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && listing) {
+      checkEligibilityToReport(listing.id, "listing").then(res => {
+        setIsTenant(res.eligible);
+      });
+    }
+  }, [currentUser, listing]);
 
 
 
@@ -65,6 +88,18 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
   const [qaLoading, setQaLoading] = useState(false);
   const [showAllBreakdown, setShowAllBreakdown] = useState(false);
 
+  // Lock body scroll when modals are open
+  useEffect(() => {
+    if (showContractModal || lightboxOpen || showConfirmDelete || showReportModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [showContractModal, lightboxOpen, showConfirmDelete, showReportModal]);
+
   const isOwner = currentUser && listing && currentUser.id === listing.landlord_id;
 
   const handleDelete = async () => {
@@ -87,6 +122,52 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
     } finally {
       setIsDeleting(false);
       setShowConfirmDelete(false);
+    }
+  };
+
+  const handleRentSubmit = async () => {
+    if (!contractAccepted) return;
+    if (!currentUser) {
+      toast.error("Please login to rent a property.");
+      return;
+    }
+    setIsSubmittingRentalRequest(true);
+    try {
+      const res = await submitRentalRequest(listing!.id, "listing", listing!.landlord_id!);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Rental request submitted successfully!");
+        setShowContractModal(false);
+      }
+    } catch (err) {
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setIsSubmittingRentalRequest(false);
+    }
+  };
+
+  const handleReportSubmit = async () => {
+    if (!reportDescription.trim()) {
+      toast.error("Please provide a description of the issue.");
+      return;
+    }
+    setIsSubmittingReport(true);
+    try {
+      const res = await submitReport(listing!.id, "listing", listing!.landlord_id!, reportCategory, reportDescription);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Report submitted! AI classified severity as: ${res.severity}`);
+        setShowReportModal(false);
+        setReportDescription("");
+        // Optimistically refresh if trust score changed (optional, but let's just trigger a full reload)
+        router.refresh();
+      }
+    } catch (err) {
+      toast.error("Failed to submit report.");
+    } finally {
+      setIsSubmittingReport(false);
     }
   };
 
@@ -650,30 +731,70 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
                   </button>
                 ) : (
                   <>
+                    <button
+                      onClick={() => {
+                        if (!currentUser) {
+                          toast.error("Please login first.");
+                          return;
+                        }
+                        setShowContractModal(true);
+                        setContractAccepted(false);
+                      }}
+                      style={{
+                        background: "linear-gradient(135deg, #10B981, #059669)", color: "#fff", border: "none",
+                        borderRadius: 12, padding: "0.85rem 1rem",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        gap: "8px", fontWeight: 800, fontSize: "0.95rem",
+                        cursor: "pointer", transition: "transform 0.15s, box-shadow 0.15s",
+                        boxShadow: "0 4px 14px rgba(16, 185, 129, 0.4)",
+                        fontFamily: "inherit", width: "100%", marginBottom: "4px"
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(16, 185, 129, 0.6)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(16, 185, 129, 0.4)"; }}
+                    >
+                      <CheckCircle size={18} /> Rent this House
+                    </button>
                     <a
                       href="tel:+8801700000000"
                       style={{
-                        background: "#22C55E", color: "#fff", textDecoration: "none",
+                        background: "rgba(255,255,255,0.15)", color: "#fff", textDecoration: "none",
                         borderRadius: 12, padding: "0.75rem 1rem",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         gap: "8px", fontWeight: 700, fontSize: "0.9rem",
                         transition: "background 0.15s",
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#16A34A")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "#22C55E")}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.25)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.15)")}
                     >
                       <Phone size={15} /> Call Landlord
                     </a>
+                    {isTenant && (
+                      <button
+                        onClick={() => setShowReportModal(true)}
+                        style={{
+                          background: "transparent", color: "var(--danger)", border: "1.5px solid var(--danger)",
+                          borderRadius: 12, padding: "0.75rem 1rem",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          gap: "8px", fontWeight: 600, fontSize: "0.88rem",
+                          cursor: "pointer", transition: "background 0.15s", fontFamily: "inherit",
+                          marginTop: "8px"
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(220,38,38,0.1)")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <Shield size={15} /> Report Issue
+                      </button>
+                    )}
                     <button
                       style={{
-                        background: "rgba(255,255,255,0.12)", color: "#fff", border: "1.5px solid rgba(255,255,255,0.25)",
+                        background: "rgba(255,255,255,0.08)", color: "#fff", border: "1.5px solid rgba(255,255,255,0.15)",
                         borderRadius: 12, padding: "0.75rem 1rem",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         gap: "8px", fontWeight: 600, fontSize: "0.88rem",
                         cursor: "pointer", transition: "background 0.15s", fontFamily: "inherit",
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.2)")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.12)")}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.15)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
                     >
                       <MessageCircle size={15} /> Send Message
                     </button>
@@ -994,6 +1115,193 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contract Modal */}
+      {showContractModal && (
+        <div
+          onClick={() => setShowContractModal(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 10000,
+            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 24,
+              padding: "2rem",
+              maxWidth: 550,
+              width: "100%",
+              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+              border: "1px solid var(--border)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--forest)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                <Shield size={24} style={{ color: "var(--emerald)" }} />
+                Code of Conduct
+              </h2>
+              <button 
+                onClick={() => setShowContractModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--stone)" }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ 
+              background: "var(--mist)", padding: "1.5rem", borderRadius: 16, 
+              fontSize: "0.9rem", color: "var(--slate)", lineHeight: 1.6,
+              marginBottom: "1.5rem", border: "1px solid var(--border)"
+            }}>
+              <p style={{ fontWeight: 700, marginBottom: "0.75rem", color: "var(--ink)" }}>By renting this property, you agree to the following terms:</p>
+              <ul style={{ paddingLeft: "1.25rem", display: "flex", flexDirection: "column", gap: "0.5rem", margin: 0 }}>
+                <li>I will pay the rent on time as agreed with the landlord.</li>
+                <li>I will not sublet the property without the landlord's explicit permission.</li>
+                <li>I will maintain the property in good condition and report any damages promptly.</li>
+                <li>I will respect the neighbors and not engage in disruptive activities.</li>
+                <li>I understand that violating these rules may lead to a report on the platform, affecting my trust score.</li>
+                <li>I will provide honest and constructive feedback regarding this property.</li>
+              </ul>
+            </div>
+
+            <label style={{ display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer", marginBottom: "1.5rem", padding: "1rem", background: contractAccepted ? "rgba(16, 185, 129, 0.1)" : "#fff", border: `2px solid ${contractAccepted ? "var(--emerald)" : "var(--border)"}`, borderRadius: 12, transition: "all 0.2s" }}>
+              <input 
+                type="checkbox" 
+                checked={contractAccepted}
+                onChange={e => setContractAccepted(e.target.checked)}
+                style={{ width: 20, height: 20, accentColor: "var(--emerald)", marginTop: 2 }}
+              />
+              <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--ink)", lineHeight: 1.4 }}>
+                I have read and agree to the Thikana Code of Conduct. I understand this is a binding request.
+              </span>
+            </label>
+
+            <button
+              onClick={handleRentSubmit}
+              disabled={!contractAccepted || isSubmittingRentalRequest}
+              style={{
+                width: "100%",
+                background: contractAccepted ? "var(--emerald)" : "var(--stone)", 
+                color: "#fff", border: "none",
+                borderRadius: 14, padding: "1rem",
+                fontWeight: 700, fontSize: "1.05rem",
+                cursor: contractAccepted && !isSubmittingRentalRequest ? "pointer" : "not-allowed", 
+                transition: "all 0.2s",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                opacity: contractAccepted ? 1 : 0.6,
+                boxShadow: contractAccepted ? "0 10px 25px -5px rgba(16,185,129,0.4)" : "none"
+              }}
+            >
+              {isSubmittingRentalRequest ? (
+                <><Loader2 size={18} className="animate-spin" /> Submitting Request...</>
+              ) : (
+                <>Submit Rental Request <Send size={16} /></>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div
+          onClick={() => setShowReportModal(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 10000,
+            background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1rem",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 24,
+              padding: "2rem",
+              maxWidth: 500,
+              width: "100%",
+              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--danger)", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                <Shield size={24} />
+                Report an Issue
+              </h2>
+              <button 
+                onClick={() => setShowReportModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--stone)" }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p style={{ fontSize: "0.88rem", color: "var(--slate)", marginBottom: "1.5rem" }}>
+              Since you are renting this property, you can submit a verified report. Our AI will analyze your report and take immediate action if necessary.
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBottom: "1.5rem" }}>
+              <div>
+                <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--forest)", marginBottom: "6px", display: "block" }}>Category</label>
+                <select 
+                  className="input" 
+                  value={reportCategory}
+                  onChange={e => setReportCategory(e.target.value)}
+                  style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "1px solid var(--border)" }}
+                >
+                  <option>Scam / Fake Info</option>
+                  <option>Hygiene / Pests</option>
+                  <option>Landlord Behavior</option>
+                  <option>Safety / Security</option>
+                  <option>Maintenance Issues</option>
+                </select>
+              </div>
+              
+              <div>
+                <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--forest)", marginBottom: "6px", display: "block" }}>Details</label>
+                <textarea 
+                  className="input" 
+                  rows={4}
+                  value={reportDescription}
+                  onChange={e => setReportDescription(e.target.value)}
+                  placeholder="Please describe the issue in detail..."
+                  style={{ width: "100%", padding: "0.75rem", borderRadius: 12, border: "1px solid var(--border)", resize: "none" }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleReportSubmit}
+              disabled={isSubmittingReport}
+              style={{
+                width: "100%",
+                background: "var(--danger)", 
+                color: "#fff", border: "none",
+                borderRadius: 14, padding: "1rem",
+                fontWeight: 700, fontSize: "1.05rem",
+                cursor: isSubmittingReport ? "not-allowed" : "pointer", 
+                transition: "all 0.2s",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                opacity: isSubmittingReport ? 0.7 : 1,
+              }}
+            >
+              {isSubmittingReport ? (
+                <><Loader2 size={18} className="animate-spin" /> Analyzing & Submitting...</>
+              ) : (
+                <>Submit Verified Report <Send size={16} /></>
+              )}
+            </button>
           </div>
         </div>
       )}

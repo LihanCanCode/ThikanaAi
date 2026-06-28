@@ -115,7 +115,8 @@ export default function ListPropertyPage() {
           // 2. Fallback to OpenStreetMap (Nominatim) if Mapbox didn't work
           if (!fullAddress) {
             const res = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+              { headers: { "User-Agent": "Thikana/1.0 (contact@thikana.com)" } }
             );
             const data = await res.json();
             if (data.display_name) {

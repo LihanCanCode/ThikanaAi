@@ -7,6 +7,8 @@ import { formatBDT } from "@/lib/utils";
 import { PlusCircle, CheckCircle, Clock, AlertCircle, TrendingUp, Loader2, UserPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Listing } from "@/types";
+import { getOwnerRentalRequests, respondToRentalRequest } from "@/app/actions/rental-actions";
+import { toast } from "react-hot-toast";
 
 export interface TenantWithPayment {
   id: string;
@@ -27,6 +29,10 @@ export default function LandlordDashboard() {
   const [showAddTenant, setShowAddTenant] = useState(false);
   const [adding, setAdding] = useState(false);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  
+  // Rental Requests state
+  const [rentalRequests, setRentalRequests] = useState<any[]>([]);
+  const [actioningRequest, setActioningRequest] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -85,6 +91,12 @@ export default function LandlordDashboard() {
       setTenants(mappedTenants);
     }
 
+    // c) Fetch rental requests
+    const requestsRes = await getOwnerRentalRequests();
+    if (requestsRes.success && requestsRes.requests) {
+      setRentalRequests(requestsRes.requests);
+    }
+
     setLoading(false);
   }, [supabase]);
 
@@ -115,6 +127,23 @@ export default function LandlordDashboard() {
       await loadData();
     }
     setMarkingId(null);
+  };
+
+  const handleRequestResponse = async (requestId: string, status: "accepted" | "rejected") => {
+    setActioningRequest(requestId);
+    try {
+      const res = await respondToRentalRequest(requestId, status);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Request ${status} successfully!`);
+        await loadData();
+      }
+    } catch (err) {
+      toast.error("An error occurred.");
+    } finally {
+      setActioningRequest(null);
+    }
   };
 
   const handleAddTenant = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -235,6 +264,70 @@ export default function LandlordDashboard() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "1.5rem" }}>
             <div>
+              <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>Rental Requests</h2>
+              {rentalRequests.length === 0 ? (
+                <div className="card" style={{ padding: "1.5rem", textAlign: "center", color: "var(--text-muted)", marginBottom: "2rem" }}>
+                  <p>No new rental requests.</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "2rem" }}>
+                  {rentalRequests.map((req) => (
+                    <div key={req.id} className="card" style={{ padding: "1.25rem", borderLeft: req.status === 'pending' ? "4px solid var(--warning)" : "4px solid var(--success)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                            {req.student?.avatar_url ? (
+                              <img src={req.student.avatar_url} alt="" style={{ width: 36, height: 36, borderRadius: "50%" }} />
+                            ) : (
+                              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--primary-light)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                🎓
+                              </div>
+                            )}
+                            <div>
+                              <div style={{ fontWeight: 700, color: "var(--ink)" }}>{req.student?.full_name || "Unknown Student"}</div>
+                              <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{req.student?.university} • {req.student?.phone}</div>
+                            </div>
+                          </div>
+                          <div style={{ fontSize: "0.85rem", color: "var(--slate)", background: "var(--mist)", padding: "8px 12px", borderRadius: 8 }}>
+                            Requested <strong>{req.listing?.title_en || req.room_share?.title_en}</strong>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", justifyContent: "center" }}>
+                          {req.status === 'pending' ? (
+                            <>
+                              <button 
+                                onClick={() => handleRequestResponse(req.id, "accepted")} 
+                                disabled={actioningRequest === req.id}
+                                className="btn btn-primary" 
+                                style={{ padding: "0.4rem 1rem", fontSize: "0.8rem", background: "var(--success)" }}
+                              >
+                                {actioningRequest === req.id ? <Loader2 size={14} className="animate-spin"/> : "Accept"}
+                              </button>
+                              <button 
+                                onClick={() => handleRequestResponse(req.id, "rejected")} 
+                                disabled={actioningRequest === req.id}
+                                className="btn btn-outline" 
+                                style={{ padding: "0.4rem 1rem", fontSize: "0.8rem", color: "var(--danger)", borderColor: "var(--danger)" }}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : (
+                            <span style={{ 
+                              padding: "4px 12px", borderRadius: 99, fontSize: "0.75rem", fontWeight: 700,
+                              background: req.status === 'accepted' ? "#dcfce7" : "rgba(220,38,38,0.1)",
+                              color: req.status === 'accepted' ? "var(--success)" : "var(--danger)"
+                            }}>
+                              {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "1rem" }}>Payment Ledger — {monthLabel}</h2>
               {tenants.length === 0 ? (
                 <div className="card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>

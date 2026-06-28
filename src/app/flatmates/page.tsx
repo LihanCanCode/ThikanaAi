@@ -24,6 +24,9 @@ function RoomShareCard({
 }) {
   const [showContact, setShowContact] = useState(false);
   const [showTrustScore, setShowTrustScore] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
   
   // Custom type cast to safely retrieve joined profile info
   const creatorProfile = (room as any).creator || {};
@@ -142,7 +145,7 @@ function RoomShareCard({
       </div>
 
       {/* AI Trust Score Modal */}
-      {showTrustScore && typeof document !== "undefined" && createPortal(
+      {mounted && showTrustScore && createPortal(
         <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }} onClick={() => setShowTrustScore(false)}>
           <div style={{ background: "#fff", width: "100%", maxWidth: "420px", borderRadius: "20px", overflow: "hidden", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", padding: "1.5rem" }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "1.5rem" }}>
@@ -216,6 +219,7 @@ export default function FlatmatesPage() {
   const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   // AI Matchmaker State
   const [showAiChat, setShowAiChat] = useState(false);
@@ -281,6 +285,7 @@ export default function FlatmatesPage() {
 
   // Load from DB
   useEffect(() => {
+    setMounted(true);
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       const uId = data?.user?.id || null;
@@ -956,7 +961,7 @@ export default function FlatmatesPage() {
       </main>
 
       {/* Floating AI Matchmaker Chat */}
-      {typeof document !== "undefined" && createPortal(
+      {mounted && createPortal(
         <div style={{ position: "fixed", bottom: "2rem", right: "2rem", zIndex: 99999 }}>
           {showAiChat ? (
           <div style={{ width: "350px", height: "450px", background: "#fff", borderRadius: "16px", boxShadow: "0 10px 40px rgba(0,0,0,0.15)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
