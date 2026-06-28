@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/images/readme-banner.png" alt="Thikana Banner" width="100%" style="border-radius: 12px; margin-bottom: 20px; object-fit: contain; height: 300px; background-color: white;" />
+  <img src="public/images/readme-banner.png" alt="Thikana Banner" width="800" />
 
   # 🏡 Thikana AI
   **The Next-Generation, AI-Powered Bilingual Rental & Matchmaking Marketplace for Bangladesh.**

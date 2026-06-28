@@ -98,12 +98,16 @@ export const DHAKA_AREAS = [
 
 /** University list with coordinates */
 export const UNIVERSITIES = [
-  { id: "iut",  name: "Islamic University of Technology",  short_name: "IUT",  lat: 23.9518, lng: 90.3868 },
-  { id: "duet", name: "Dhaka University of Engineering & Technology", short_name: "DUET", lat: 24.0039, lng: 90.4181 },
-  { id: "diu",  name: "Daffodil International University", short_name: "DIU",  lat: 23.7513, lng: 90.3576 },
-  { id: "buet", name: "Bangladesh University of Engineering and Technology", short_name: "BUET", lat: 23.7264, lng: 90.3928 },
-  { id: "du",   name: "University of Dhaka",               short_name: "DU",   lat: 23.7279, lng: 90.3989 },
-  { id: "nsu",  name: "North South University",            short_name: "NSU",  lat: 23.8157, lng: 90.4292 },
-  { id: "brac", name: "BRAC University",                   short_name: "BRAC", lat: 23.7787, lng: 90.4022 },
-  { id: "aiub", name: "American International University", short_name: "AIUB", lat: 23.8750, lng: 90.4170 },
+  { id: "iut",  name: "Islamic University of Technology",  short_name: "IUT",  lat: 23.9480, lng: 90.3792 },
+  { id: "duet", name: "Dhaka University of Engineering & Technology", short_name: "DUET", lat: 24.0194, lng: 90.4189 },
+  { id: "diu",  name: "Daffodil International University", short_name: "DIU",  lat: 23.8643, lng: 90.3164 },
+  { id: "buet", name: "Bangladesh University of Engineering and Technology", short_name: "BUET", lat: 23.7266, lng: 90.3928 },
+  { id: "du",   name: "University of Dhaka",               short_name: "DU",   lat: 23.7340, lng: 90.3928 },
+  { id: "nsu",  name: "North South University",            short_name: "NSU",  lat: 23.8150, lng: 90.4279 },
+  { id: "brac", name: "BRAC University",                   short_name: "BRAC", lat: 23.7725, lng: 90.4254 },
+  { id: "aiub", name: "American International University", short_name: "AIUB", lat: 23.8222, lng: 90.4274 },
+  { id: "uiu",  name: "United International University",   short_name: "UIU",  lat: 23.7980, lng: 90.4498 },
+  { id: "ewu",  name: "East West University",              short_name: "EWU",  lat: 23.7687, lng: 90.4256 },
+  { id: "aust", name: "Ahsanullah University of Science and Technology", short_name: "AUST", lat: 23.7636, lng: 90.4069 },
+  { id: "iub",  name: "Independent University, Bangladesh", short_name: "IUB", lat: 23.8156, lng: 90.4276 },
 ];
