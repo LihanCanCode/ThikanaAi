@@ -11,7 +11,6 @@
     rooms INTEGER,
     type TEXT,
     for_gender TEXT,
-    furnishing TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
   );
 */
@@ -35,7 +34,6 @@ type SavedSearch = {
   rooms: number | null;
   type: string | null;
   for_gender: string | null;
-  furnishing: string | null;
   created_at: string;
 };
 
@@ -51,8 +49,7 @@ export default function AlertsPage() {
     max_rent: 30000,
     rooms: 1,
     type: "student",
-    for_gender: "",
-    furnishing: ""
+    for_gender: ""
   });
 
   const supabase = createClient();
@@ -99,8 +96,7 @@ export default function AlertsPage() {
         max_rent: formData.max_rent < 30000 ? formData.max_rent : null,
         rooms: formData.rooms || null,
         type: formData.type || null,
-        for_gender: formData.for_gender || null,
-        furnishing: formData.furnishing || null,
+        for_gender: formData.for_gender || null
       };
 
       const res = await fetch("/api/alerts/save", {
@@ -139,7 +135,6 @@ export default function AlertsPage() {
       if (alert.rooms && l.rooms !== alert.rooms) return false;
       if (alert.type && l.type !== alert.type) return false;
       if (alert.for_gender && l.for_gender !== alert.for_gender) return false;
-      if (alert.furnishing && l.furnishing !== alert.furnishing) return false;
       return true;
     }).length;
   };
@@ -151,7 +146,6 @@ export default function AlertsPage() {
     if (alert.rooms) params.set("rooms", alert.rooms.toString());
     if (alert.type) params.set("type", alert.type);
     if (alert.for_gender) params.set("for_gender", alert.for_gender);
-    if (alert.furnishing) params.set("furnishing", alert.furnishing);
     
     const basePath = alert.type === "family" ? "/listings/family" : "/listings";
     return `${basePath}?${params.toString()}`;
@@ -219,7 +213,6 @@ export default function AlertsPage() {
                       {alert.max_rent && <span className="px-2.5 py-1 bg-[var(--mist)] text-[var(--stone)] rounded-lg text-xs font-semibold bangla">Max ৳{alert.max_rent.toLocaleString()}</span>}
                       {alert.rooms && <span className="px-2.5 py-1 bg-[var(--mist)] text-[var(--stone)] rounded-lg text-xs font-semibold">{alert.rooms} Beds</span>}
                       {alert.for_gender && <span className="px-2.5 py-1 bg-[var(--mist)] text-[var(--stone)] rounded-lg text-xs font-semibold capitalize">{alert.for_gender}</span>}
-                      {alert.furnishing && <span className="px-2.5 py-1 bg-[var(--mist)] text-[var(--stone)] rounded-lg text-xs font-semibold capitalize">{alert.furnishing}</span>}
                     </div>
 
                     <div className="mt-auto pt-4 border-t border-[var(--foam)] flex items-center justify-between">
@@ -307,16 +300,6 @@ export default function AlertsPage() {
                       <option value="female">Female Only</option>
                     </select>
                   </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-[var(--slate)] mb-2 block uppercase tracking-wider">Furnishing</label>
-                  <select value={formData.furnishing} onChange={e => setFormData({...formData, furnishing: e.target.value})} className="w-full py-3 px-4 bg-[var(--mist)] border-2 border-transparent rounded-xl focus:border-[var(--emerald)] outline-none text-sm font-bold text-[var(--forest)] appearance-none">
-                    <option value="">Any</option>
-                    <option value="unfurnished">Unfurnished</option>
-                    <option value="semi">Semi-Furnished</option>
-                    <option value="fully">Fully-Furnished</option>
-                  </select>
                 </div>
 
               </div>
