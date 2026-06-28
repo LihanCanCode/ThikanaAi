@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Navbar from "@/components/shared/Navbar";
 import { formatBDT } from "@/lib/utils";
-import { PlusCircle, CheckCircle, Clock, AlertCircle, TrendingUp, Loader2, UserPlus } from "lucide-react";
+import { PlusCircle, CheckCircle, Clock, AlertCircle, TrendingUp, Loader2, UserPlus, Banknote, Home, GraduationCap, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { Listing } from "@/types";
 import { getOwnerRentalRequests, respondToRentalRequest } from "@/app/actions/rental-actions";
@@ -129,6 +129,18 @@ export default function LandlordDashboard() {
     setMarkingId(null);
   };
 
+  const handleRemoveTenant = async (tenantId: string) => {
+    if (!confirm("Are you sure you want to remove this tenant?")) return;
+    
+    const { error } = await supabase.from("tenants").delete().eq("id", tenantId);
+    if (error) {
+      toast.error("Failed to remove tenant.");
+    } else {
+      toast.success("Tenant removed successfully.");
+      await loadData();
+    }
+  };
+
   const handleRequestResponse = async (requestId: string, status: "accepted" | "rejected") => {
     setActioningRequest(requestId);
     try {
@@ -235,14 +247,14 @@ export default function LandlordDashboard() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
           {[
-            { label: "Total Monthly Income", val: formatBDT(totalMonthly), icon: "💰", color: "var(--primary-light)", textColor: "var(--primary)" },
-            { label: "Collected This Month", val: formatBDT(collected), icon: "✅", color: "#dcfce7", textColor: "var(--success)" },
-            { label: "Pending Collection", val: formatBDT(pending), icon: "⏳", color: pending > 0 ? "rgba(245,155,43,0.12)" : "#dcfce7", textColor: pending > 0 ? "var(--warning)" : "var(--success)" },
-            { label: "Active Listings", val: String(myListings.length), icon: "🏠", color: "var(--accent-light)", textColor: "var(--accent-hover)" },
+            { label: "Total Monthly Income", val: formatBDT(totalMonthly), icon: <Banknote size={26} className="mb-2" />, color: "var(--primary-light)", textColor: "var(--primary)" },
+            { label: "Collected This Month", val: formatBDT(collected), icon: <CheckCircle size={26} className="mb-2" />, color: "#dcfce7", textColor: "var(--success)" },
+            { label: "Pending Collection", val: formatBDT(pending), icon: <Clock size={26} className="mb-2" />, color: pending > 0 ? "rgba(245,155,43,0.12)" : "#dcfce7", textColor: pending > 0 ? "var(--warning)" : "var(--success)" },
+            { label: "Active Listings", val: String(myListings.length), icon: <Home size={26} className="mb-2" />, color: "var(--accent-light)", textColor: "var(--accent-hover)" },
           ].map((s) => (
-            <div key={s.label} style={{ background: s.color, borderRadius: "var(--radius-lg)", padding: "1.25rem", border: "1px solid rgba(0,0,0,0.04)" }}>
-              <div style={{ fontSize: "1.8rem", marginBottom: "6px" }}>{s.icon}</div>
-              <div style={{ fontSize: "1.5rem", fontWeight: 800, color: s.textColor }}>{s.val}</div>
+            <div key={s.label} style={{ background: "white", borderRadius: "var(--radius-lg)", padding: "1.25rem", border: "1px solid var(--border)", boxShadow: "var(--shadow-sm)" }}>
+              <div style={{ color: s.textColor }}>{s.icon}</div>
+              <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--ink)" }}>{s.val}</div>
               <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "2px" }}>{s.label}</div>
             </div>
           ))}
@@ -280,7 +292,7 @@ export default function LandlordDashboard() {
                               <img src={req.student.avatar_url} alt="" style={{ width: 36, height: 36, borderRadius: "50%" }} />
                             ) : (
                               <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--primary-light)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                🎓
+                                <GraduationCap size={18} color="var(--primary)" />
                               </div>
                             )}
                             <div>
@@ -365,6 +377,14 @@ export default function LandlordDashboard() {
                               {markingId === t.id ? <Loader2 size={14} className="animate-spin" /> : "Mark Paid"}
                             </button>
                           )}
+                          <button
+                            onClick={() => handleRemoveTenant(t.id)}
+                            className="btn btn-outline"
+                            style={{ padding: "0.4rem", color: "var(--danger)", borderColor: "transparent" }}
+                            title="Remove Tenant"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -402,9 +422,6 @@ export default function LandlordDashboard() {
                     </Link>
                   ))
                 )}
-                <Link href="/listings/new" className="btn btn-outline" style={{ justifyContent: "center", gap: "6px" }}>
-                  <PlusCircle size={14} /> Add Listing
-                </Link>
               </div>
 
               <div className="card" style={{ padding: "1.25rem", marginTop: "1rem" }}>

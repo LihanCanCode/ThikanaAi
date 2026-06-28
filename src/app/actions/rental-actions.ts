@@ -125,11 +125,24 @@ export async function respondToRentalRequest(requestId: string, status: "accepte
 
     if (updateError) throw updateError;
 
-    // If accepted, update the listing availability
+    // If accepted, update the listing availability and add tenant
     if (status === "accepted") {
+      let monthlyRent = 0;
+      let roomLabel = "";
+
       if (request.listing_id) {
+        const { data: listingData } = await supabase.from("listings").select("rent_bdt, title_en").eq("id", request.listing_id).single();
+        if (listingData) {
+          monthlyRent = listingData.rent_bdt;
+          roomLabel = listingData.title_en;
+        }
         await supabase.from("listings").update({ is_available: false }).eq("id", request.listing_id);
       } else if (request.room_share_id) {
+        const { data: rsData } = await supabase.from("room_shares").select("rent_bdt, title_en").eq("id", request.room_share_id).single();
+        if (rsData) {
+          monthlyRent = rsData.rent_bdt;
+          roomLabel = rsData.title_en;
+        }
         await supabase.from("room_shares").update({ is_available: false }).eq("id", request.room_share_id);
       }
       
@@ -143,6 +156,21 @@ export async function respondToRentalRequest(requestId: string, status: "accepte
         .eq(targetColumn, targetId)
         .eq("status", "pending")
         .neq("id", requestId);
+
+      // Fetch student details for the tenant entry
+      const { data: studentProfile } = await supabase.from("profiles").select("full_name, phone").eq("id", request.student_id).single();
+
+      // Automatically add to tenants list
+      await supabase.from("tenants").insert({
+        landlord_id: authData.user.id,
+        listing_id: request.listing_id || null, 
+        tenant_name: studentProfile?.full_name || "Unknown Student",
+        tenant_phone: studentProfile?.phone || null,
+        room_label: roomLabel || "Rental Property",
+        monthly_rent: monthlyRent,
+        move_in_date: new Date().toISOString().split('T')[0],
+        is_active: true
+      });
     }
 
     // Notify the student

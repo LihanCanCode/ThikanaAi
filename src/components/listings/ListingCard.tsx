@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { MapPin, ShieldCheck, AlertTriangle, X, CheckCircle2, Heart } from "lucide-react";
+import { MapPin, ShieldCheck, AlertTriangle, X, CheckCircle2, Heart, GraduationCap, Users, Briefcase, User, Home } from "lucide-react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { formatBDT, timeAgo, truncate } from "@/lib/utils";
@@ -38,8 +38,8 @@ export default function ListingCard({ listing, distanceKm }: ListingCardProps) {
                 className="object-cover transition-transform duration-350 group-hover:scale-105"
               />
             ) : (
-              <div className="flex items-center justify-center w-full h-full text-[var(--slate)] text-4xl bg-[var(--mist)]">
-                🏠
+              <div className="flex items-center justify-center w-full h-full text-[var(--slate)] bg-[var(--mist)]">
+                <Home size={32} />
               </div>
             )}
             
@@ -50,11 +50,13 @@ export default function ListingCard({ listing, distanceKm }: ListingCardProps) {
                 listing.type === "family" ? "bg-[var(--gold)]/90 text-white" : 
                 "bg-[var(--slate)]/90 text-white"
               }`}>
-                {listing.type === "student" ? "🎓 Student" : listing.type === "family" ? "👨‍👩‍👧 Family" : "💼 Professional"}
+                <span className="flex items-center gap-1">
+                  {listing.type === "student" ? <><GraduationCap size={12}/> Student</> : listing.type === "family" ? <><Users size={12}/> Family</> : <><Briefcase size={12}/> Professional</>}
+                </span>
               </span>
               {listing.for_gender && listing.for_gender !== "any" && (
-                <span className="bg-white/90 text-[var(--forest)] px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-sm border border-[var(--foam)]">
-                  {listing.for_gender === "male" ? "👨 Male" : "👩 Female"}
+                <span className="bg-white/90 text-[var(--forest)] px-2.5 py-1 rounded-full text-xs font-semibold backdrop-blur-md shadow-sm border border-[var(--foam)] flex items-center gap-1">
+                  <User size={12} /> {listing.for_gender === "male" ? "Male" : "Female"}
                 </span>
               )}
             </div>
@@ -134,7 +136,7 @@ export default function ListingCard({ listing, distanceKm }: ListingCardProps) {
               <div className="flex items-center gap-2">
                 {distanceKm !== undefined && (
                   <span className="text-xs font-semibold text-[var(--forest)] bg-[var(--mist)] px-2 py-1 rounded-md flex items-center gap-1">
-                    🎓 {distanceKm.toFixed(1)} km
+                    <GraduationCap size={12} /> {distanceKm.toFixed(1)} km
                   </span>
                 )}
                 {listing.utilities_included && (

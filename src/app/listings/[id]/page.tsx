@@ -461,13 +461,13 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
           </div>
           <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
             {[
-              { icon: "🛏", label: "Bedrooms", val: listing.rooms },
-              { icon: "🚿", label: "Bathrooms", val: listing.bathrooms },
-              { icon: "🏢", label: "Floor", val: listing.floor ?? "—" },
+              { icon: <Bed size={24} color="var(--primary)" />, label: "Bedrooms", val: listing.rooms },
+              { icon: <Bath size={24} color="var(--primary)" />, label: "Bathrooms", val: listing.bathrooms },
+              { icon: <Building2 size={24} color="var(--primary)" />, label: "Floor", val: listing.floor ?? "—" },
 
             ].map(s => (
-              <div key={s.label} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "1.2rem" }}>{s.icon}</div>
+              <div key={s.label} style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{ marginBottom: "6px" }}>{s.icon}</div>
                 <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--ink)" }}>{s.val}</div>
                 <div style={{ fontSize: "0.7rem", color: "var(--stone)", fontWeight: 500 }}>{s.label}</div>
               </div>

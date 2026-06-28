@@ -18,11 +18,12 @@
 1. [Overview & Problem Statement](#-overview--problem-statement)
 2. [Deep-Dive: Core AI Features](#-deep-dive-core-ai-features)
 3. [Deep-Dive: Student & Tenant Features](#-deep-dive-student--tenant-features)
-4. [System Architecture & Stack](#-system-architecture--stack)
-5. [Database Schema](#-database-schema-supabase)
-6. [Security & Edge Middleware](#-security--edge-middleware)
-7. [Comprehensive Setup Guide](#-comprehensive-setup-guide)
-8. [Folder Structure](#-folder-structure)
+4. [Deep-Dive: Platform Administration & Navigation](#-deep-dive-platform-administration--navigation)
+5. [System Architecture & Stack](#-system-architecture--stack)
+6. [Database Schema](#-database-schema-supabase)
+7. [Security & Edge Middleware](#-security--edge-middleware)
+8. [Comprehensive Setup Guide](#-comprehensive-setup-guide)
+9. [Folder Structure](#-folder-structure)
 
 ---
 
@@ -62,6 +63,17 @@ To combat arbitrary rent pricing, Thikana features a robust Rent Estimator:
 *   **Deterministic Fallback**: Uses a hardcoded mapping of Dhaka's neighborhood medians (e.g., Mirpur-10, Gulshan, Dhanmondi). It mathematically applies modifiers based on floor level, furnishing status, and room count.
 *   **AI Reasoning Pipeline**: When the Gemini API is available, it injects the baseline calculation into a prompt context, asking Gemini to analyze real-time market sentiment and provide a grounded, intelligent JSON response containing the `min`, `max`, and `median` fair market value.
 
+### 4. 🚨 AI-Powered Tenant Reporting & Automated Penalties
+Ensures landlord accountability through a globally accessible, verified reporting system.
+*   **Context-Aware Verification**: Only students with active, accepted rental contracts can file reports against their current property, preventing spam and false claims.
+*   **Gemini Severity Classification**: When a report is filed, **Gemini 1.5 Flash** instantly reads the description and categorizes the severity (low, medium, high, critical) based on housing safety standards.
+*   **Automated Trust Score Penalties**: High or critical severity reports automatically trigger an immediate, algorithmic deduction in the landlord's Trust Score across **all** of their active properties, warning future tenants.
+
+### 5. 🤖 AI Conversational Matchmaker Widget
+A floating, intelligent chat interface that actively assists students in finding their perfect flatmate.
+*   **Dynamic Context Injection**: The AI reads the student's profile (university, budget, habits) and queries the active feed to recommend hyper-relevant room-share listings.
+*   **Vibe-Based Matching**: Uses Gemini to analyze open-ended user prompts (e.g., "I need a quiet roommate who studies at BRACU") to return tailored roommate matches that traditional rigid filters might miss.
+
 ---
 
 ## 🤝 Deep-Dive: Student & Tenant Features
@@ -83,6 +95,20 @@ A dedicated Finance dashboard for students sharing flats:
 *   Includes a **Utility Bill Splitter**: Input the total monthly utility bill (Gas + Water + Electricity) and the number of flatmates. The system calculates exact individual shares and dynamically updates the student's personal budget forecast with CountUp animations.
 
 > 📸 **[Placeholder: Insert screenshot of the Flatmate Matchmaking or Bill Splitter UI here]**
+
+---
+
+## 🛡️ Deep-Dive: Platform Administration & Navigation
+
+### 1. ⚖️ Admin Resolution & Security Console
+A powerful command center for platform administrators to verify users and resolve disputes.
+*   **Document Verification**: Admins review and manually approve student ID cards with a dynamic image-zoom interface and automated rejection feedback loops.
+*   **Dispute Resolution Actions**: Admins process AI-flagged tenant reports. They can manually apply Trust Score penalties, instantly suspend hazardous properties from the public feed, send official platform warnings, or forcefully terminate unsafe rental contracts directly from the dashboard.
+
+### 2. 🗺️ Mapbox GL Real-World Walking Paths
+Instead of simple straight-line distances, Thikana visualizes real road networks and environments.
+*   **Proximity Routing**: Users can see the exact walking route and estimated commute time from a potential rental to their specific university campus natively rendered on the map.
+*   **Live Geocoding**: Fully integrated Nominatim/Mapbox search to place properties with pin-point accuracy during listing creation.
 
 ---
 
@@ -143,6 +169,11 @@ Powers the Smart Match Alerts system.
 - `user_id` (uuid)
 - `area`, `type`, `furnishing` (text)
 - `max_rent`, `rooms` (numeric)
+
+### 4. `reports` & `rental_requests` Tables
+Manages the lifecycle of tenant agreements and dispute resolution.
+- **`rental_requests`**: Tracks the booking state (`pending`, `accepted`, `terminated`), establishing a verifiable link between a student and a property.
+- **`reports`**: Stores grievance reports including the AI-generated `severity`, `admin_notes`, and resolution `status`.
 
 ---
 
