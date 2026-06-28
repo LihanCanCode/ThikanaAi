@@ -61,6 +61,7 @@ export async function signup(prevState: unknown, formData: FormData) {
     email,
     password,
     options: {
+      emailRedirectTo: "https://thikana-ai.vercel.app/auth/login",
       data: {
         full_name: fullName,
         phone,
